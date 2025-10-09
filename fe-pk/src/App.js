@@ -1,5 +1,8 @@
-import TestUpload from "./TestUpload";
+import React from 'react';
+import AppRouter from './routes/AppRouter';
+
 function App() {
-  return <TestUpload />;
+  return <AppRouter />;
 }
+
 export default App;
