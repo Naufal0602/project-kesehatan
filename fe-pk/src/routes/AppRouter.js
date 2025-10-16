@@ -23,7 +23,6 @@ function App() {
         <Route path="/" element={<Navigate to="/register" />} />
           <Route path="/register" element={<RegisterPendingUser />} />
           <Route path="/waiting" element={<WaitingPage />} />
-          <Route path="/admin/confirm-account" element={<ConfirmAccount />} />
 
         {/* halaman public */}
         <Route path="/registerAdmin" element={<Register />} />
@@ -32,8 +31,7 @@ function App() {
         {/* halaman admin, hanya bisa diakses role: 'admin' */}
         <Route element={<ProtectedRouteByRole allowedRole="admin" />}>
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
-
-          {/* Tambahkan route admin lainnya di sini */}
+          <Route path="/admin/confirm-account" element={<ConfirmAccount />} />
           <Route path="/admin/tingkatan" element={<Tingkatan />} />
           <Route path="/admin/daftar-account" element={<DaftarAccount />} />
         </Route>

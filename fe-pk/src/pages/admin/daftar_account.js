@@ -79,6 +79,11 @@ const DaftarAccount = () => {
       sortable: true,
     },
     {
+      name: "Role",
+      selector: (row) => row.role || "-",
+      sortable: true,
+    },
+    {
       name: "Aksi",
       cell: (row) => (
         <div className="flex gap-2">
@@ -90,7 +95,7 @@ const DaftarAccount = () => {
             }}
             className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-md transition"
           >
-            <Info className="w-4 h-4" /> Detail
+            <Info className="w-4 h-4" />
           </button>
 
           {/* Tombol Hapus */}
@@ -98,7 +103,7 @@ const DaftarAccount = () => {
             onClick={() => handleDelete(row.id)}
             className="flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md transition"
           >
-            <Trash2 className="w-4 h-4" /> Hapus
+            <Trash2 className="w-4 h-4" />
           </button>
         </div>
       ),
@@ -151,57 +156,60 @@ const DaftarAccount = () => {
   );
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex min-h-screen bg-gray-50">
       <div className="fixed top-0 left-0 z-50">
         <Sidebar />
       </div>
-      <div className="lg:ml-64 mt-14 p-8 w-full text-center">
-        <h2 className="text-2xl font-semibold mb-6 text-green-600">
+      <div className="lg:ml-64 mt-14 p-8 w-full">
+        <h2 className="text-2xl font-bold mb-6 text-green-600 text-center md:text-left">
           Daftar Akun Pengguna
         </h2>
-        <div
-          className={`flex items-center border space-y-2 justify-right transition-all duration-300 rounded-lg px-3 py-1 w-full md:w-64 ${
-            searchTerm
-              ? "border-green-500 shadow-md space-y-2"
-              : "border-gray-300 hover:border-green-400"
-          }`}
-        >
-          <Search
-            className={`transition-colors ${
-              searchTerm ? "text-green-500" : "text-gray-400"
-            }`}
-          />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 focus:outline-none text-sm sm:text-base bg-transparent space-y-2"
-            placeholder="Cari Tingkatan..."
-          />
-        </div>
 
-        {/* 🔹 Tabel akun */}
-        {loading ? (
-          <div className="flex justify-center items-center h-40">
-            <Loader2 className="w-6 h-6 text-green-500 animate-spin" />
+        <div className="bg-white p-6 rounded-lg shadow-md flex flex-col gap-6">
+          <div
+            className={`flex items-center border justify-right transition-all duration-300 rounded-lg px-3 py-1 w-full md:w-64 ${
+              searchTerm
+                ? "border-green-500 shadow-md"
+                : "border-gray-300 hover:border-green-400"
+            }`}
+          >
+            <Search
+              className={`transition-colors ${
+                searchTerm ? "text-green-500" : "text-gray-400"
+              }`}
+            />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-4 focus:outline-none text-sm sm:text-base bg-transparent"
+              placeholder="Cari Nama Akun..."
+            />
           </div>
-        ) : filteredAkun.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-40 text-gray-500">
-            <p className="text-lg font-medium">Akun tidak ditemukan</p>
-            <p className="text-sm text-gray-400">
-              Coba periksa kembali kata kunci pencarian Anda.
-            </p>
-          </div>
-        ) : (
-          <DataTable
-            columns={columns}
-            data={filteredAkun}
-            pagination
-            highlightOnHover
-            striped
-            responsive
-          />
-        )}
+
+          {/* 🔹 Tabel akun */}
+          {loading ? (
+            <div className="flex justify-center items-center h-40">
+              <Loader2 className="w-6 h-6 text-green-500 animate-spin" />
+            </div>
+          ) : filteredAkun.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-40 text-gray-500">
+              <p className="text-lg font-medium">Akun tidak ditemukan</p>
+              <p className="text-sm text-gray-400">
+                Coba periksa kembali kata kunci pencarian Anda.
+              </p>
+            </div>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={filteredAkun}
+              pagination
+              highlightOnHover
+              striped
+              responsive
+            />
+          )}
+        </div>
 
         {/* 🔹 Modal Info */}
         {showModal && selectedUser && (
@@ -220,6 +228,10 @@ const DaftarAccount = () => {
                   <div className="flex">
                     <span className="w-32 font-semibold">Nama</span>
                     <span>: {selectedUser.nama}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-32 font-semibold">Role</span>
+                    <span>: {selectedUser.role}</span>
                   </div>
                   <div className="flex">
                     <span className="w-32 font-semibold">LSPSN</span>
