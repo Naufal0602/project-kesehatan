@@ -1,31 +1,63 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import {
-  Layers,
-  Users,
-  ClockFading,
-  HeartPulse,
-  LibraryBig,
-  House,
-  ChevronDown,
-  ClipboardList
-} from "lucide-react";
+import { HeartPulse, LibraryBig, House, ChevronDown } from "lucide-react";
 import LogoutButton from "./logout_button";
+import { auth, db } from "../services/firebaseConfig";
+import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 
 const Sidebar = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
+  const [userName, setUserName] = useState("Admin");
+  const [userPhoto, setUserPhoto] = useState(null);
   const location = useLocation();
 
   const menuItems = [
-    { to: "/admin/dashboard", label: "Dashboard", icon: <House /> },
-    { to: "/admin/data_umum/index", label: "Data Umum", icon: <ClipboardList /> },
-    { to: "/admin/materi", label: "Data Materi", icon: <LibraryBig /> },
-    { to: "/admin/penyakit", label: "Data Penyakit", icon: <HeartPulse /> },
-    { to: "/admin/tingkatan", label: "Tingkatan", icon: <Layers /> },
-    { to: "/admin/daftar-account", label: "Daftar Akun Pengguna", icon: <Users /> },
-    { to: "/admin/confirm-account", label: "Daftar Akun Tertunda", icon: <ClockFading /> },
+    { to: "/user/dashboard", label: "Dashboard", icon: <House /> },
+    { to: "/user/materi", label: "Data Materi", icon: <LibraryBig /> },
+    { to: "/user/penyakit", label: "Data Penyakit", icon: <HeartPulse /> },
+    { to: "/user/data_umum/index", label: "Data Umum", icon: <HeartPulse /> },
   ];
+
+  // 🔹 Ambil nama dan foto user dari Firestore
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      try {
+        // Ambil nama dari koleksi users
+        const userRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userRef);
+        let nama = user.displayName || "Admin";
+
+        if (userSnap.exists()) {
+          nama = userSnap.data().nama || nama;
+        }
+
+        setUserName(nama);
+
+        // Ambil foto dari koleksi data_spesifik berdasarkan user_id
+        const q = query(
+          collection(db, "data_spesifik"),
+          where("user_id", "==", user.uid)
+        );
+        const spesifikSnap = await getDocs(q);
+
+        if (!spesifikSnap.empty) {
+          const data = spesifikSnap.docs[0].data();
+          if (data.foto) {
+            // kalau foto berupa object { url, public_id }, ambil url-nya
+            setUserPhoto(typeof data.foto === "object" ? data.foto.url : data.foto);
+          }
+        }
+      } catch (error) {
+        console.error("Gagal ambil data user:", error);
+      }
+    };
+
+    fetchUserData();
+  }, []);
 
   return (
     <div>
@@ -39,12 +71,12 @@ const Sidebar = () => {
         </button>
         <h1 className="text-white text-3xl font-bold p-4 dynapuff">MoveOn</h1>
 
-        {/* Tombol dropdown admin */}
+        {/* Tombol dropdown nama user */}
         <button
           onClick={() => setShowMenu(!showMenu)}
           className="text-white p-4 ml-auto flex items-center gap-2 rounded-md transition hover:bg-green-700"
         >
-          Admin
+          {userName}
           <ChevronDown
             className={`transition-transform duration-300 ${
               showMenu ? "rotate-180" : ""
@@ -67,7 +99,17 @@ const Sidebar = () => {
       {/* Sidebar untuk desktop */}
       <div className="hidden lg:block fixed w-64 h-screen bg-green-500 text-white z-30">
         <div className="flex flex-col items-center gap-4 py-8">
-          <div className="bg-white rounded-full w-40 h-40"></div>
+          {userPhoto ? (
+            <img
+              src={userPhoto}
+              alt="Foto Profil"
+              className="w-40 h-40 rounded-full object-cover border-4 border-white shadow-md"
+            />
+          ) : (
+            <div className="bg-white rounded-full w-40 h-40 flex items-center justify-center text-green-600 font-bold text-2xl">
+              {userName?.charAt(0) || "A"}
+            </div>
+          )}
           <h2 className="text-4xl font-bold mb-6 dynapuff">MOVEON</h2>
         </div>
 
@@ -99,7 +141,7 @@ const Sidebar = () => {
         </div>
       </div>
 
-      {/* Overlay ketika sidebar dibuka di mobile */}
+      {/* Overlay mobile */}
       {showSidebar && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden transition-opacity duration-300"
@@ -107,14 +149,24 @@ const Sidebar = () => {
         ></div>
       )}
 
-      {/* Sidebar untuk mobile */}
+      {/* Sidebar mobile */}
       <div
         className={`fixed top-14 left-0 w-64 h-[calc(100vh-3.5rem)] bg-green-500 text-white transform transition-transform duration-300 ease-in-out z-30 lg:hidden ${
           showSidebar ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="flex flex-col items-center gap-4 py-6">
-          <div className="bg-white rounded-full w-32 h-32"></div>
+          {userPhoto ? (
+            <img
+              src={userPhoto}
+              alt="Foto Profil"
+              className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-md"
+            />
+          ) : (
+            <div className="bg-white rounded-full w-32 h-32 flex items-center justify-center text-green-600 font-bold text-2xl">
+              {userName?.charAt(0) || "A"}
+            </div>
+          )}
           <h2 className="text-3xl font-bold mb-4 dynapuff">MOVEON</h2>
         </div>
 
@@ -126,7 +178,7 @@ const Sidebar = () => {
               <Link
                 key={item.to}
                 to={item.to}
-                onClick={() => setShowSidebar(false)} // Tutup sidebar setelah klik menu
+                onClick={() => setShowSidebar(false)}
                 className={`w-full p-2 flex items-center gap-4 pl-4 transition duration-300 group ${
                   isActive
                     ? "bg-green-400 font-bold"

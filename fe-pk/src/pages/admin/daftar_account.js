@@ -15,12 +15,11 @@ import { Loader2, Info, Trash2, Search } from "lucide-react";
 const DaftarAccount = () => {
   const [akunList, setAkunList] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null); // untuk modal info
+  const [selectedUser, setSelectedUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [refresh, setRefresh] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // 🔹 Ambil data akun dan gabungkan dengan data_spesifik + tingkatan
   const fetchAkun = async () => {
     setLoading(true);
     try {
@@ -30,28 +29,25 @@ const DaftarAccount = () => {
         getDocs(collection(db, "tingkatan")),
       ]);
 
-      // 🔹 Map user_id -> data user
       const usersMap = {};
       usersSnap.forEach((u) => {
         usersMap[u.id] = u.data();
       });
 
-      // 🔹 Map id_tingkatan -> nama_tingkatan
       const tingkatanMap = {};
       tingkatanSnap.forEach((t) => {
         tingkatanMap[t.id] = t.data().nama_tingkatan || "-";
       });
 
-      // 🔹 Ambil SEMUA data_spesifik
-      const akunData = dataSpesifikSnap.docs.map((doc) => {
-        const data = doc.data();
-        const user = usersMap[data.user_id] || {}; // ambil data user (kalau ada)
+      const akunData = dataSpesifikSnap.docs.map((docSnap) => {
+        const data = docSnap.data();
+        const user = usersMap[data.user_id] || {};
         const namaTingkatan = tingkatanMap[data.id_tingkatan] || "-";
 
         return {
-          id: doc.id,
-          ...user, // gabung data user (email, nama, dsb)
-          ...data, // gabung data spesifik (user_id, id_tingkatan, dsb)
+          id: docSnap.id,
+          ...user,
+          ...data,
           nama_tingkatan: namaTingkatan,
         };
       });
@@ -67,27 +63,16 @@ const DaftarAccount = () => {
     fetchAkun();
   }, [refresh]);
 
-  // 🔹 Kolom untuk DataTable
-
   const columns = [
     { name: "Nama", selector: (row) => row.nama, sortable: true },
     { name: "Email", selector: (row) => row.email, sortable: true },
     { name: "Lembaga", selector: (row) => row.lembaga || "-", sortable: true },
-    {
-      name: "Tingkatan",
-      selector: (row) => row.nama_tingkatan || "-",
-      sortable: true,
-    },
-    {
-      name: "Role",
-      selector: (row) => row.role || "-",
-      sortable: true,
-    },
+    { name: "Tingkatan", selector: (row) => row.nama_tingkatan || "-", sortable: true },
+    { name: "Role", selector: (row) => row.role || "-", sortable: true },
     {
       name: "Aksi",
       cell: (row) => (
         <div className="flex gap-2">
-          {/* Tombol Detail */}
           <button
             onClick={() => {
               setSelectedUser(row);
@@ -98,7 +83,6 @@ const DaftarAccount = () => {
             <Info className="w-4 h-4" />
           </button>
 
-          {/* Tombol Hapus */}
           <button
             onClick={() => handleDelete(row.id)}
             className="flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md transition"
@@ -109,40 +93,39 @@ const DaftarAccount = () => {
       ),
     },
   ];
-  const handleDelete = async (user) => {
+
+  const handleDelete = async (userId) => {
     if (!window.confirm("Yakin ingin menghapus data ini?")) return;
     setLoading(true);
 
     try {
-      console.log("Menghapus data dengan ID:", user.id);
+      const userObj =
+        akunList.find((a) => a.id === userId || a.user_id === userId) || null;
 
-      // 🔹 1. Hapus foto di Cloudinary (jika ada public_id)
-      if (user.foto && typeof user.foto === "object" && user.foto.public_id) {
+      if (userObj && userObj.public_id && typeof userObj.public_id === "string") {
         await fetch("http://localhost:3030/delete", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ public_id: user.foto.public_id }),
+          body: JSON.stringify({ public_id: userObj.public_id }),
         });
-        console.log("🧹 Foto di Cloudinary berhasil dihapus");
       }
 
-      // 🔹 2. Hapus data user dari koleksi "users"
-      await deleteDoc(doc(db, "users", user.id));
+      await deleteDoc(doc(db, "users", userId));
 
-      // 🔹 3. Cari dan hapus semua data di "data_spesifik" yang terkait user_id
       const dataSpesifikSnap = await getDocs(
-        query(collection(db, "data_spesifik"), where("user_id", "==", user.id))
+        query(collection(db, "data_spesifik"), where("user_id", "==", userId))
       );
 
-      const deletePromises = dataSpesifikSnap.docs.map((d) =>
-        deleteDoc(doc(db, "data_spesifik", d.id))
-      );
-      await Promise.all(deletePromises);
+      if (!dataSpesifikSnap.empty) {
+        await Promise.all(
+          dataSpesifikSnap.docs.map((d) =>
+            deleteDoc(doc(db, "data_spesifik", d.id))
+          )
+        );
+      }
 
-      alert(
-        "✅ Data berhasil dihapus (users, data_spesifik, dan foto Cloudinary)!"
-      );
-      setRefresh(!refresh);
+      alert("✅ Data berhasil dihapus!");
+      setRefresh((r) => !r);
     } catch (error) {
       console.error("❌ Error menghapus data:", error);
       alert("Terjadi kesalahan saat menghapus data!");
@@ -157,15 +140,19 @@ const DaftarAccount = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
+      {/* 🔹 Sidebar tetap */}
       <div className="fixed top-0 left-0 z-50">
         <Sidebar />
       </div>
+
+      {/* 🔹 Konten utama */}
       <div className="lg:ml-64 mt-14 p-8 w-full">
         <h2 className="text-2xl font-bold mb-6 text-green-600 text-center md:text-left">
           Daftar Akun Pengguna
         </h2>
 
-        <div className="bg-white p-6 rounded-lg shadow-md flex flex-col gap-6">
+        <div className="bg-white p-4 rounded-lg shadow-md flex flex-col gap-6">
+          {/* 🔍 Search bar */}
           <div
             className={`flex items-center border justify-right transition-all duration-300 rounded-lg px-3 py-1 w-full md:w-64 ${
               searchTerm
@@ -187,28 +174,30 @@ const DaftarAccount = () => {
             />
           </div>
 
-          {/* 🔹 Tabel akun */}
-          {loading ? (
-            <div className="flex justify-center items-center h-40">
-              <Loader2 className="w-6 h-6 text-green-500 animate-spin" />
-            </div>
-          ) : filteredAkun.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-40 text-gray-500">
-              <p className="text-lg font-medium">Akun tidak ditemukan</p>
-              <p className="text-sm text-gray-400">
-                Coba periksa kembali kata kunci pencarian Anda.
-              </p>
-            </div>
-          ) : (
-            <DataTable
-              columns={columns}
-              data={filteredAkun}
-              pagination
-              highlightOnHover
-              striped
-              responsive
-            />
-          )}
+          {/* 🔹 Wrapper tabel dengan scroll horizontal */}
+          <div className="overflow-x-auto border rounded-lg">
+            {loading ? (
+              <div className="flex justify-center items-center h-40">
+                <Loader2 className="w-6 h-6 text-green-500 animate-spin" />
+              </div>
+            ) : filteredAkun.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-40 text-gray-500">
+                <p className="text-lg font-medium">Akun tidak ditemukan</p>
+                <p className="text-sm text-gray-400">
+                  Coba periksa kembali kata kunci pencarian Anda.
+                </p>
+              </div>
+            ) : (
+              <DataTable
+                columns={columns}
+                data={filteredAkun}
+                pagination
+                highlightOnHover
+                striped
+                responsive
+              />
+            )}
+          </div>
         </div>
 
         {/* 🔹 Modal Info */}

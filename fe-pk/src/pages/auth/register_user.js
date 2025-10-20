@@ -97,13 +97,15 @@ const RegisterPendingStyled = () => {
 
         uploadedUrl = data.url;
         publicId = data.public_id;
+        formData.resource_type = data.resource_type || "raw";
       }
-
+ 
       // 🟢 Simpan data ke Firestore
       await addDoc(collection(db, "pending_users"), {
         ...formData,
         foto: uploadedUrl,
         public_id: publicId,
+        resource_type: formData.resource_type, 
         status: "pending",
         created_at: serverTimestamp(),
       });
@@ -166,6 +168,7 @@ const RegisterPendingStyled = () => {
             accept="image/*"
             onChange={handleFotoChange}
             className="hidden"
+            required
           />
         </div>
 
@@ -207,6 +210,7 @@ const RegisterPendingStyled = () => {
                 <option value="">Pilih jenis kelamin</option>
                 <option value="Laki-laki">Laki-laki</option>
                 <option value="Perempuan">Perempuan</option>
+                <option value="Lainnya">Lainnya</option>
               </select>
             </div>
 

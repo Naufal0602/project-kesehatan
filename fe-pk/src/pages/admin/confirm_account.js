@@ -39,6 +39,7 @@ const ConfirmAccount = () => {
   }, [refresh]);
 
   // ✅ Fungsi Terima
+  // ✅ Fungsi Terima (update)
   const handleAccept = async (user) => {
     setLoading(true);
     try {
@@ -49,6 +50,7 @@ const ConfirmAccount = () => {
       );
       const createdUser = userCredential.user;
 
+      // 🔹 Simpan data user ke Firestore
       await setDoc(doc(db, "users", createdUser.uid), {
         nama: user.nama,
         email: user.email,
@@ -57,6 +59,7 @@ const ConfirmAccount = () => {
         created_at: serverTimestamp(),
       });
 
+      // 🔹 Simpan data spesifik (langsung ambil string foto + public_id)
       await setDoc(doc(db, "data_spesifik", createdUser.uid), {
         user_id: createdUser.uid,
         nrp: user.nrp,
@@ -67,11 +70,14 @@ const ConfirmAccount = () => {
         cabang: user.cabang,
         kta: user.kta,
         id_tingkatan: user.id_tingkatan,
-        foto: user.foto || "",
+        foto: user.foto || "", // ✅ string URL
+        public_id: user.public_id || "", // ✅ ikut disimpan
+        resource_type: user.resource_type || "raw",
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
       });
 
+      // 🔹 Hapus dari pending_users
       await deleteDoc(doc(db, "pending_users", user.id));
 
       alert("✅ Akun berhasil diterima dan dibuat di Auth + Firestore!");
@@ -84,30 +90,46 @@ const ConfirmAccount = () => {
     }
   };
 
-  // ❌ Fungsi Tolak
-  const handleReject = async (user) => {
-    if (!window.confirm("Yakin ingin menolak akun ini?")) return;
-    setLoading(true);
-    try {
-      if (user.foto && typeof user.foto === "object" && user.foto.public_id) {
-        await fetch("http://localhost:3030/delete", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ public_id: user.foto.public_id }),
-        });
-      }
 
-      await deleteDoc(doc(db, "pending_users", user.id));
+// ❌ Fungsi Tolak
+const handleReject = async (user) => {
+  if (!window.confirm("Yakin ingin menolak akun ini?")) return;
+  setLoading(true);
 
-      alert("❌ Akun berhasil ditolak dan (jika ada) foto di Cloudinary dihapus!");
-      setRefresh(!refresh);
-    } catch (error) {
-      console.error("Error saat menolak akun:", error);
-      alert("Terjadi kesalahan saat menolak akun.");
-    } finally {
-      setLoading(false);
+  try {
+    // ✅ Semua user pasti punya foto, jadi langsung proses hapus di Cloudinary
+    const response = await fetch("http://localhost:3030/delete", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        public_id: user.public_id,
+        resource_type: user.resource_type,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || result.error) {
+      console.error("❌ Gagal hapus foto di Cloudinary:", result);
+      alert("Gagal menghapus foto di Cloudinary. Data belum dihapus dari Firestore.");
+      return; // ⛔ berhenti di sini, jangan hapus data Firestore
     }
-  };
+
+    // ✅ Jika berhasil hapus dari Cloudinary, lanjut hapus data dari Firestore
+    await deleteDoc(doc(db, "pending_users", user.id));
+
+    alert("❌ Akun berhasil ditolak dan foto di Cloudinary dihapus!");
+    setRefresh(!refresh);
+  } catch (error) {
+    console.error("Error saat menolak akun:", error);
+    alert("Terjadi kesalahan saat menolak akun.");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-50">
