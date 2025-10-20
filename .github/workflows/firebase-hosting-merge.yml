@@ -30,3 +30,4 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PROJECT_KESEHATAN_56B4B }}
           channelId: live
           projectId: project-kesehatan-56b4b
+          entryPoint: ./fe-pk
