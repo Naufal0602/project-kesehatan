@@ -22,7 +22,7 @@ function App() {
     <Router>
       <Routes>
         {/* redirect root ke /register */}
-        <Route path="/" element={<Navigate to="/register" />} />
+        <Route path="/" element={<Navigate to="/login" />} />
           <Route path="/register" element={<RegisterPendingUser />} />
           <Route path="/waiting" element={<WaitingPage />} />
 
