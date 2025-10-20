@@ -1,4 +1,4 @@
-// server.js
+// /api/index.js
 import express from "express";
 import cors from "cors";
 import multer from "multer";
@@ -23,19 +23,17 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // ==================================================
-// 🔸 Upload ke Cloudinary (gambar, pdf, video, dll)
+// 🔸 Upload ke Cloudinary
 // ==================================================
 app.post("/upload", upload.single("file"), async (req, res) => {
   try {
     const file = req.file;
-    if (!file)
-      return res.status(400).json({ error: "Tidak ada file yang diupload" });
+    if (!file) return res.status(400).json({ error: "Tidak ada file yang diupload" });
 
-    // 🔹 Gunakan resource_type: "auto" agar bisa semua jenis file
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: "react_uploads",
-        resource_type: "auto", // <---- penting biar bisa upload PDF, DOC, VIDEO, dll
+        resource_type: "auto",
       },
       (error, result) => {
         if (error) {
@@ -43,12 +41,11 @@ app.post("/upload", upload.single("file"), async (req, res) => {
           return res.status(500).json({ error: error.message });
         }
 
-        // 🔹 Kirim balik url & public_id
         res.json({
           url: result.secure_url,
           public_id: result.public_id,
-          resource_type: result.resource_type, // simpan juga type-nya (image, raw, video)
-          format: result.format, // contoh: pdf, docx, jpg, png
+          resource_type: result.resource_type,
+          format: result.format,
         });
       }
     );
@@ -66,11 +63,8 @@ app.post("/upload", upload.single("file"), async (req, res) => {
 app.delete("/delete", async (req, res) => {
   try {
     const { public_id, resource_type } = req.body;
+    if (!public_id) return res.status(400).json({ error: "public_id wajib diisi" });
 
-    if (!public_id)
-      return res.status(400).json({ error: "public_id wajib diisi" });
-
-    // Validasi resource_type, Cloudinary TIDAK mendukung 'auto' saat destroy
     const validTypes = ["image", "video", "raw"];
     const type = validTypes.includes(resource_type) ? resource_type : "raw";
 
@@ -90,4 +84,6 @@ app.delete("/delete", async (req, res) => {
 });
 
 // ==================================================
-app.listen(3030, () => console.log("🚀 Server running on port 3030"));
+// 🧩 Export handler untuk Vercel
+// ==================================================
+export default app;
