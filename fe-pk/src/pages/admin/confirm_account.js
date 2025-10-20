@@ -10,12 +10,14 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "../../services/firebaseConfig";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, Eye, X } from "lucide-react";
 
 const ConfirmAccount = () => {
   const [pendingUsers, setPendingUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refresh, setRefresh] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
   // 🔹 Ambil data pending_users
   useEffect(() => {
@@ -39,8 +41,8 @@ const ConfirmAccount = () => {
   }, [refresh]);
 
   // ✅ Fungsi Terima
-  // ✅ Fungsi Terima (update)
   const handleAccept = async (user) => {
+    if (!window.confirm(`Terima akun ${user.nama}?`)) return;
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(
@@ -50,7 +52,6 @@ const ConfirmAccount = () => {
       );
       const createdUser = userCredential.user;
 
-      // 🔹 Simpan data user ke Firestore
       await setDoc(doc(db, "users", createdUser.uid), {
         nama: user.nama,
         email: user.email,
@@ -59,7 +60,6 @@ const ConfirmAccount = () => {
         created_at: serverTimestamp(),
       });
 
-      // 🔹 Simpan data spesifik (langsung ambil string foto + public_id)
       await setDoc(doc(db, "data_spesifik", createdUser.uid), {
         user_id: createdUser.uid,
         nrp: user.nrp,
@@ -70,17 +70,17 @@ const ConfirmAccount = () => {
         cabang: user.cabang,
         kta: user.kta,
         id_tingkatan: user.id_tingkatan,
-        foto: user.foto || "", // ✅ string URL
-        public_id: user.public_id || "", // ✅ ikut disimpan
+        foto: user.foto || "",
+        public_id: user.public_id || "",
         resource_type: user.resource_type || "raw",
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
       });
 
-      // 🔹 Hapus dari pending_users
       await deleteDoc(doc(db, "pending_users", user.id));
 
       alert("✅ Akun berhasil diterima dan dibuat di Auth + Firestore!");
+      setShowModal(false);
       setRefresh(!refresh);
     } catch (error) {
       console.error("Error saat menerima akun:", error);
@@ -90,50 +90,51 @@ const ConfirmAccount = () => {
     }
   };
 
+  // ❌ Fungsi Tolak
+  const handleReject = async (user) => {
+    if (!window.confirm(`Tolak akun ${user.nama}?`)) return;
+    setLoading(true);
 
-// ❌ Fungsi Tolak
-const handleReject = async (user) => {
-  if (!window.confirm("Yakin ingin menolak akun ini?")) return;
-  setLoading(true);
+    try {
+      const response = await fetch("http://localhost:3030/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          public_id: user.public_id,
+          resource_type: user.resource_type,
+        }),
+      });
 
-  try {
-    // ✅ Semua user pasti punya foto, jadi langsung proses hapus di Cloudinary
-    const response = await fetch("http://localhost:3030/delete", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        public_id: user.public_id,
-        resource_type: user.resource_type,
-      }),
-    });
+      const result = await response.json();
 
-    const result = await response.json();
+      if (!response.ok || result.error) {
+        console.error("❌ Gagal hapus foto di Cloudinary:", result);
+        alert("Gagal menghapus foto di Cloudinary. Data belum dihapus dari Firestore.");
+        return;
+      }
 
-    if (!response.ok || result.error) {
-      console.error("❌ Gagal hapus foto di Cloudinary:", result);
-      alert("Gagal menghapus foto di Cloudinary. Data belum dihapus dari Firestore.");
-      return; // ⛔ berhenti di sini, jangan hapus data Firestore
+      await deleteDoc(doc(db, "pending_users", user.id));
+
+      alert("❌ Akun berhasil ditolak dan foto di Cloudinary dihapus!");
+      setShowModal(false);
+      setRefresh(!refresh);
+    } catch (error) {
+      console.error("Error saat menolak akun:", error);
+      alert("Terjadi kesalahan saat menolak akun.");
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // ✅ Jika berhasil hapus dari Cloudinary, lanjut hapus data dari Firestore
-    await deleteDoc(doc(db, "pending_users", user.id));
-
-    alert("❌ Akun berhasil ditolak dan foto di Cloudinary dihapus!");
-    setRefresh(!refresh);
-  } catch (error) {
-    console.error("Error saat menolak akun:", error);
-    alert("Terjadi kesalahan saat menolak akun.");
-  } finally {
-    setLoading(false);
-  }
-};
-
-
-
+  // 👁️ Fungsi Lihat Detail
+  const handleView = (user) => {
+    setSelectedUser(user);
+    setShowModal(true);
+  };
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-50">
-      {/* Sidebar (disembunyikan di layar kecil) */}
+      {/* Sidebar */}
       <div className="md:block fixed top-0 left-0">
         <Sidebar />
       </div>
@@ -181,6 +182,13 @@ const handleReject = async (user) => {
                     </td>
                     <td className="py-3 px-4 flex flex-col sm:flex-row justify-center items-center gap-2">
                       <button
+                        onClick={() => handleView(user)}
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-md flex items-center gap-1 w-full sm:w-auto justify-center"
+                      >
+                        <Eye size={18} />
+                        Proses
+                      </button>
+                      <button
                         onClick={() => handleAccept(user)}
                         className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-md flex items-center gap-1 w-full sm:w-auto justify-center"
                       >
@@ -202,6 +210,58 @@ const handleReject = async (user) => {
           </div>
         )}
       </div>
+
+      {/* 🔹 Modal Detail User */}
+      {showModal && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 px-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-lg relative p-6 overflow-y-auto max-h-[90vh]">
+            <button
+              onClick={() => setShowModal(false)}
+              className="absolute top-3 right-3 text-gray-600 hover:text-gray-800"
+            >
+              <X size={20} />
+            </button>
+
+            <h2 className="text-xl font-semibold text-green-600 mb-4">
+              Detail Akun Pending
+            </h2>
+
+            <div className="space-y-2 text-gray-700">
+              <p><strong>Nama:</strong> {selectedUser.nama}</p>
+              <p><strong>Email:</strong> {selectedUser.email}</p>
+              <p><strong>Lembaga:</strong> {selectedUser.lembaga}</p>
+              <p><strong>Tingkatan:</strong> {selectedUser.id_tingkatan}</p>
+              <p><strong>NRP:</strong> {selectedUser.nrp}</p>
+              <p><strong>Jenis Kelamin:</strong> {selectedUser.jenis_kelamin}</p>
+              <p><strong>Tempat, Tanggal Lahir:</strong> {selectedUser.ttl}</p>
+              <p><strong>Cabang:</strong> {selectedUser.cabang}</p>
+              <p><strong>KTA:</strong> {selectedUser.kta}</p>
+              <p><strong>LSPSN:</strong> {selectedUser.lspsn}</p>
+
+              {selectedUser.foto && (
+                <div className="mt-4">
+                  <p className="font-semibold mb-2">Foto:</p>
+                  <img
+                    src={selectedUser.foto}
+                    alt="Foto User"
+                    className="w-48 h-48 object-cover rounded-lg border"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* 🔘 Tombol aksi dalam modal */}
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <button
+                onClick={() => setShowModal(false)}
+                className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-md"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
