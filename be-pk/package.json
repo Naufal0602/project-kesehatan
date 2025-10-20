@@ -1,14 +1,14 @@
 {
   "name": "be-pk",
   "version": "1.0.0",
-  "main": "server.js",
+  "main": "api/index.js",
   "type": "module",
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
    "scripts": {
-    "start": "node server.js"
+    "start": "node api/index.js"
   },
   "dependencies": {
     "express": "^4.19.0",
