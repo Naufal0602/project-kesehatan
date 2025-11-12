@@ -1,4 +1,3 @@
-// src/pages/admin/data_umum/DataUmumAdmin.js
 import React, { useEffect, useState, useMemo } from "react";
 import Sidebar from "../../../components/sidebar";
 import DataTable from "react-data-table-component";
@@ -24,23 +23,111 @@ import {
   serverTimestamp,
   orderBy,
   query,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "../../../services/firebaseConfig";
+import FullScreenLoader from "../../../components/FullScreenLoader";
+import ConfirmModal from "../../../components/ConfirmModal";
 
-/**
- * DataUmumAdmin
- * Versi lengkap: upload semua tipe file via /upload, simpan metadata resource_type & format,
- * preview gambar/pdf, download semua file dengan nama & ekstensi yang benar,
- * hapus file dengan mengirim public_id + resource_type ke /delete.
- */
 const DataUmumAdmin = () => {
   const [dataList, setDataList] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loadingStatus, setLoadingStatus] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [selectedData, setSelectedData] = useState(null);
   const [filterText, setFilterText] = useState("");
+  const [showAddFileModal, setShowAddFileModal] = useState(false);
+  const [newFiles, setNewFiles] = useState([]); // simpan file yang akan diupload
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+
+  const handleSelectFile = (id) => {
+    setSelectedFiles((prev) =>
+      prev.includes(id) ? prev.filter((fid) => fid !== id) : [...prev, id]
+    );
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedFiles.length === 0) return;
+
+    setConfirmAction(() => async () => {
+      setLoadingStatus("loading");
+      try {
+        console.log("🟡 Mulai hapus file yang dipilih:", selectedFiles);
+
+        const docRef = doc(db, "data_umum", selectedData.id);
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists())
+          throw new Error("❌ Data tidak ditemukan di Firestore!");
+
+        const currentFiles = docSnap.data().files || [];
+        console.log("📦 File saat ini di Firestore:", currentFiles);
+
+        // 🔹 Hapus file di Cloudinary satu per satu
+        for (const fileId of selectedFiles) {
+          const file = currentFiles.find((f) => f.public_id === fileId);
+          if (!file) {
+            console.warn("⚠️ File tidak ditemukan di Firestore:", fileId);
+            continue;
+          }
+
+          console.log(
+            "🧩 Menghapus file dari Cloudinary:",
+            file.public_id,
+            "| type:",
+            file.resource_type
+          );
+
+          try {
+            const res = await fetch("http://localhost:3030/delete", {
+              method: "DELETE",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                public_id: file.public_id,
+                resource_type: file.resource_type, // kirim juga resource_type!
+              }),
+            });
+
+            const result = await res.json();
+            console.log("🌐 Respon server delete:", result);
+
+            if (!res.ok || !result.success) {
+              console.error("❌ Gagal hapus di Cloudinary:", result);
+            } else {
+              console.log(
+                `✅ File ${file.nama_file} berhasil dihapus dari Cloudinary`
+              );
+            }
+          } catch (err) {
+            console.error("🔥 Error saat menghapus di Cloudinary:", err);
+          }
+        }
+
+        // 🔹 Update Firestore (hapus file dari array)
+        const updatedFiles = currentFiles.filter(
+          (f) => !selectedFiles.includes(f.public_id)
+        );
+
+        console.log("📉 File tersisa yang akan disimpan:", updatedFiles);
+
+        await updateDoc(docRef, { files: updatedFiles });
+        console.log("✅ Firestore berhasil diperbarui");
+
+        setSelectedFiles([]);
+        setLoadingStatus("success");
+      } catch (err) {
+        console.error("Gagal hapus file:", err);
+        setLoadingStatus("error");
+      } finally {
+        setShowConfirm(false);
+      }
+    });
+
+    setShowConfirm(true);
+  };
 
   const [formData, setFormData] = useState({
     id: "",
@@ -53,7 +140,7 @@ const DataUmumAdmin = () => {
 
   // Ambil semua data dari Firestore
   const fetchData = async () => {
-    setLoading(true);
+    setLoadingStatus(true);
     try {
       const q = query(
         collection(db, "data_umum"),
@@ -66,7 +153,7 @@ const DataUmumAdmin = () => {
       console.error("Gagal fetch data:", err);
       alert("Gagal memuat data.");
     } finally {
-      setLoading(false);
+      setLoadingStatus(false);
     }
   };
 
@@ -116,7 +203,7 @@ const DataUmumAdmin = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitLoading(true);
-
+    setLoadingStatus("loading");
     try {
       let uploadedFiles = [];
 
@@ -154,6 +241,7 @@ const DataUmumAdmin = () => {
           created_at: serverTimestamp(),
         });
       }
+      setLoadingStatus("success");
 
       // reset & refresh
       setShowModal(false);
@@ -168,7 +256,7 @@ const DataUmumAdmin = () => {
       fetchData();
     } catch (error) {
       console.error("Gagal menyimpan:", error);
-      alert("Gagal menyimpan data: " + (error.message || error));
+      setLoadingStatus("error" + (error.message || error));
     } finally {
       setSubmitLoading(false);
     }
@@ -191,51 +279,49 @@ const DataUmumAdmin = () => {
   };
 
   const handleDelete = async (item) => {
-    if (!window.confirm("Yakin ingin menghapus data ini?")) return;
-    setLoading(true);
+    setConfirmAction(() => async () => {
+      setLoadingStatus("loading");
+      try {
+        // 🔹 Cek dulu apakah ada file yang perlu dihapus di Cloudinary
+        if (item.files && item.files.length > 0) {
+          // Gunakan Promise.all agar menunggu semua file selesai dihapus
+          await Promise.all(
+            item.files.map(async (f) => {
+              if (f.public_id) {
+                const response = await fetch("http://localhost:3030/delete", {
+                  method: "DELETE",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    public_id: f.public_id,
+                    resource_type: f.resource_type || "auto",
+                  }),
+                });
 
-    try {
-      // 🔹 Cek dulu apakah ada file yang perlu dihapus di Cloudinary
-      if (item.files && item.files.length > 0) {
-        // Gunakan Promise.all agar menunggu semua file selesai dihapus
-        await Promise.all(
-          item.files.map(async (f) => {
-            if (f.public_id) {
-              const response = await fetch("http://localhost:3030/delete", {
-                method: "DELETE",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  public_id: f.public_id,
-                  resource_type: f.resource_type || "auto",
-                }),
-              });
-
-
-              // Cek hasil dari backend apakah berhasil
-              const result = await response.json();
-              if (!response.ok || result.error) {
-                throw new Error(
-                  `Gagal hapus file di Cloudinary: ${
-                    result.error || response.statusText
-                  }`
-                );
+                // Cek hasil dari backend apakah berhasil
+                const result = await response.json();
+                if (!response.ok || result.error) {
+                  throw new Error(
+                    `Gagal hapus file di Cloudinary: ${
+                      result.error || response.statusText
+                    }`
+                  );
+                }
               }
-            }
-          })
-        );
+            })
+          );
+        }
+
+        // 🔹 Setelah semua file berhasil dihapus di Cloudinary, hapus Firestore
+        await deleteDoc(doc(db, "data_umum", item.id));
+        setLoadingStatus("success");
+      } catch (err) {
+        console.error("Gagal hapus data:", err);
+        setLoadingStatus("error");
+      } finally {
+        setShowConfirm(false);
       }
-
-      // 🔹 Setelah semua file berhasil dihapus di Cloudinary, hapus Firestore
-      await deleteDoc(doc(db, "data_umum", item.id));
-
-      // 🔹 Refresh data
-      fetchData();
-    } catch (error) {
-      console.error("Gagal menghapus data:", error);
-      alert("Gagal menghapus data: " + error.message);
-    } finally {
-      setLoading(false);
-    }
+    });
+    setShowConfirm(true);
   };
 
   const handleInfo = (item) => {
@@ -255,9 +341,6 @@ const DataUmumAdmin = () => {
     );
   }, [dataList, filterText]);
 
-  // -------------------------
-  // Columns DataTable
-  // -------------------------
   const columns = [
     { name: "Materi", selector: (row) => row.materi, sortable: true },
     { name: "Kategori", selector: (row) => row.kategori, sortable: true },
@@ -297,51 +380,68 @@ const DataUmumAdmin = () => {
       },
     },
   ];
-
-  // -------------------------
-  // Utility: preview / download helpers
-  // -------------------------
-  const getExt = (f) => {
-    if (!f) return "";
-    // cek format field dulu, fallback ke nama_file
-    const fromFormat = f.format || "";
-    if (fromFormat) return fromFormat.toLowerCase();
-    if (f.nama_file) {
-      const parts = f.nama_file.split(".");
-      return parts.length > 1 ? parts.pop().toLowerCase() : "";
-    }
-    // try extract from URL
-    if (f.file_url) {
-      const m = f.file_url.split("?")[0].match(/\.(\w+)$/);
-      if (m) return m[1].toLowerCase();
-    }
-    return "";
+  const getFileExtension = (url) => {
+    const match = url.match(/\.(\w+)(\?|$)/);
+    return match ? match[1].toLowerCase() : "";
   };
 
-  // Download file: pakai atribut download supaya nama & ekstensi benar
-  const renderDownloadLink = (f) => {
-    return (
-      <a
-        href={f.file_url}
-        download={f.nama_file || `file.${getExt(f) || "bin"}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm inline-flex items-center gap-2"
-      >
-        <Download size={14} /> Download
-      </a>
-    );
+  // 🔹 Fungsi download seperti di user
+  const handleDownload = async (file) => {
+    if (!file?.file_url) {
+      alert("File tidak ditemukan.");
+      return;
+    }
+
+    try {
+      const ext = getFileExtension(file.file_url) || "bin";
+      const namaFile = file.nama_file?.includes(".")
+        ? file.nama_file
+        : `${file.nama_file || "file_unduhan"}.${ext}`;
+
+      const response = await fetch(file.file_url);
+      const blob = await response.blob();
+
+      const urlBlob = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = urlBlob;
+      a.download = namaFile;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(urlBlob);
+    } catch (err) {
+      console.error("Gagal mengunduh file:", err);
+      alert("Terjadi kesalahan saat mengunduh file.");
+    }
   };
 
-  // -------------------------
-  // Render component
-  // -------------------------
   return (
     <div className="flex min-h-screen bg-gray-50">
       <div className="fixed top-0 left-0 z-50">
         <Sidebar />
       </div>
       <div className="lg:ml-64 mt-14 p-6 w-full">
+        {loadingStatus && (
+          <FullScreenLoader
+            status={loadingStatus}
+            text="loading..."
+            onDone={() => {
+              setLoadingStatus(null);
+              fetchData(); // refresh data
+            }}
+          />
+        )}
+
+        {showConfirm && (
+          <ConfirmModal
+            show={showConfirm}
+            title="Hapus Data"
+            message="Apakah kamu yakin ingin menghapus data ini?"
+            onConfirm={confirmAction}
+            onCancel={() => setShowConfirm(false)}
+          />
+        )}
+
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold mb-6 text-green-600 text-center md:text-left">
             Data Umum
@@ -376,7 +476,7 @@ const DataUmumAdmin = () => {
           </div>
 
           <div className="border rounded-lg overflow-x-auto">
-            {loading ? (
+            {loadingStatus && FullScreenLoader ? (
               <div className="flex justify-center py-10">
                 <Loader2 className="animate-spin" />
               </div>
@@ -540,7 +640,7 @@ const DataUmumAdmin = () => {
                 <div className="mt-2 flex flex-row flex-wrap gap-4 md:w-1/2">
                   {selectedData.files && selectedData.files.length > 0 ? (
                     selectedData.files.map((f, idx) => {
-                      const ext = getExt(f);
+                      const ext = getFileExtension(f.file_url);
                       const isImage = [
                         "jpg",
                         "jpeg",
@@ -553,9 +653,17 @@ const DataUmumAdmin = () => {
                       return (
                         <div
                           key={idx}
-                          className="flex flex-col items-center border border-gray-200 p-3 rounded-lg shadow-sm"
+                          className="relative flex flex-col items-center border border-gray-200 p-3 rounded-lg shadow-sm"
                         >
-                          {/* Preview */}
+                          {/* ✅ Checkbox di pojok kiri atas */}
+                          <input
+                            type="checkbox"
+                            className="absolute top-2 left-2 w-4 h-4 cursor-pointer accent-blue-600"
+                            checked={selectedFiles.includes(f.public_id)}
+                            onChange={() => handleSelectFile(f.public_id)}
+                          />
+
+                          {/* ✅ Preview File */}
                           {isImage ? (
                             <img
                               src={f.file_url}
@@ -577,15 +685,14 @@ const DataUmumAdmin = () => {
                             </div>
                           )}
 
-                          {/* Nama */}
+                          {/* ✅ Nama File */}
                           <p className="text-sm mt-2 text-center break-all max-w-[160px]">
                             {f.nama_file}
                           </p>
 
-                          {/* Aksi */}
+                          {/* ✅ Tombol Aksi */}
                           <div className="flex gap-2 mt-2">
-                            {/* Lihat (untuk image/pdf buka di tab baru atau modal kecil jika mau) */}
-                            {isImage || isPDF ? (
+                            {(isImage || isPDF) && (
                               <a
                                 href={f.file_url}
                                 target="_blank"
@@ -594,10 +701,14 @@ const DataUmumAdmin = () => {
                               >
                                 <Eye size={14} /> Lihat
                               </a>
-                            ) : null}
+                            )}
 
-                            {/* Download */}
-                            {renderDownloadLink(f)}
+                            <button
+                              onClick={() => handleDownload(f)}
+                              className="bg-green-500 text-white px-3 py-1 rounded flex items-center gap-1 hover:bg-green-600"
+                            >
+                              <Download size={14} /> Unduh
+                            </button>
                           </div>
                         </div>
                       );
@@ -609,12 +720,36 @@ const DataUmumAdmin = () => {
               </div>
 
               <div className="w-full flex justify-end gap-4 mt-6">
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1 rounded-lg">
+                {/* Tombol Edit Keterangan tetap */}
+                <button
+                  onClick={() => {
+                    handleEdit(selectedData);
+                    setShowInfoModal(false);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1 rounded-lg"
+                >
                   Edit Keterangan
                 </button>
-                <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-1 rounded-lg">
-                  Tambah File
-                </button>
+
+                {/* 🔁 Tombol Dinamis: Tambah File ↔️ Hapus File */}
+                {selectedFiles.length > 0 ? (
+                  <button
+                    onClick={handleDeleteSelected}
+                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-1 rounded-lg"
+                  >
+                    Hapus {selectedFiles.length} File
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setShowAddFileModal(true);
+                      setShowInfoModal(false);
+                    }}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-1 rounded-lg"
+                  >
+                    Tambah File
+                  </button>
+                )}
               </div>
 
               <div className="absolute top-0 right-4 mt-4">
@@ -625,6 +760,143 @@ const DataUmumAdmin = () => {
                   <X />
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Tambah File */}
+        {showAddFileModal && selectedData && (
+          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-lg relative">
+              <h2 className="text-lg font-semibold mb-4 text-green-600">
+                Tambah File untuk {selectedData.materi}
+              </h2>
+
+              {/* Input file dengan preview */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1 flex items-center gap-1">
+                  <FileUp size={16} /> Pilih File (bisa banyak)
+                </label>
+                <input
+                  type="file"
+                  multiple
+                  onChange={(e) => setNewFiles(Array.from(e.target.files))}
+                  className="w-full border p-1 rounded"
+                />
+              </div>
+
+              {/* Preview file sebelum upload */}
+              {newFiles.length > 0 && (
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  {newFiles.map((file, idx) => {
+                    const ext = file.name.split(".").pop().toLowerCase();
+                    const isImage = [
+                      "jpg",
+                      "jpeg",
+                      "png",
+                      "gif",
+                      "webp",
+                    ].includes(ext);
+                    const isPDF = ext === "pdf";
+                    const url = URL.createObjectURL(file);
+
+                    return (
+                      <div
+                        key={idx}
+                        className="flex flex-col items-center border border-gray-200 p-2 rounded-lg shadow-sm"
+                      >
+                        {isImage ? (
+                          <img
+                            src={url}
+                            alt={file.name}
+                            className="w-32 h-32 object-cover rounded"
+                          />
+                        ) : isPDF ? (
+                          <iframe
+                            src={url}
+                            title="Preview PDF"
+                            className="w-32 h-32 border rounded"
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center w-32 h-32">
+                            <File size={32} />
+                            <p className="text-xs text-gray-600 mt-2">File</p>
+                          </div>
+                        )}
+                        <p className="text-xs mt-1 text-center break-all">
+                          {file.name}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => {
+                    setShowAddFileModal(false);
+                    setNewFiles([]);
+                  }}
+                  className="border px-4 py-2 rounded"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={async () => {
+                    if (newFiles.length === 0) {
+                      alert("Pilih minimal satu file untuk diupload.");
+                      return;
+                    }
+
+                    setSubmitLoading(true);
+                    try {
+                      // Upload file baru ke Cloudinary
+                      const uploadedFiles = await Promise.all(
+                        newFiles.map((f) => uploadFile(f))
+                      );
+
+                      // Gabungkan file lama dengan yang baru
+                      const existing = selectedData.files || [];
+                      const updatedFiles = [...existing, ...uploadedFiles];
+
+                      // Update Firestore
+                      await updateDoc(doc(db, "data_umum", selectedData.id), {
+                        files: updatedFiles,
+                        updated_at: serverTimestamp(),
+                      });
+
+                      alert("File berhasil ditambahkan!");
+                      setNewFiles([]);
+                      setShowAddFileModal(false);
+                      fetchData(); // refresh tabel
+                    } catch (err) {
+                      console.error("Gagal upload file:", err);
+                      alert("Gagal upload file: " + err.message);
+                    } finally {
+                      setSubmitLoading(false);
+                    }
+                  }}
+                  disabled={submitLoading}
+                  className={`flex items-center gap-2 text-white px-4 py-2 rounded ${
+                    submitLoading
+                      ? "bg-green-400 cursor-not-allowed"
+                      : "bg-green-600 hover:bg-green-700"
+                  }`}
+                >
+                  {submitLoading && (
+                    <Loader2 className="animate-spin" size={16} />
+                  )}
+                  {submitLoading ? "Mengunggah..." : "Upload"}
+                </button>
+              </div>
+
+              <button
+                onClick={() => setShowAddFileModal(false)}
+                className="absolute top-3 right-3 border p-1 rounded"
+              >
+                <X size={16} />
+              </button>
             </div>
           </div>
         )}

@@ -1,0 +1,497 @@
+import React, { useEffect, useState, useCallback } from "react";
+import SidebarUser from "../../../components/sidebar_user";
+import CreatableSelect from "react-select/creatable";
+import DataTable from "react-data-table-component";
+import { db, auth } from "../../../services/firebaseConfig";
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  doc,
+} from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
+import FullScreenLoader from "../../../components/FullScreenLoader";
+import { Trash2, Pencil } from 'lucide-react';
+
+export default function UserDataPenyakit() {
+  const [user, setUser] = useState(null);
+  const [jenisList, setJenisList] = useState([]);
+  const [selectedJenis, setSelectedJenis] = useState(null);
+  const [namaPenyakit, setNamaPenyakit] = useState("");
+  const [tips, setTips] = useState("");
+  const [hasilLab, setHasilLab] = useState("");
+  const [bulan, setBulan] = useState("");
+  const [status, setStatus] = useState("");
+  const [loadingStatus, setLoadingStatus] = useState(null);
+  const [dataPenyakit, setDataPenyakit] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // modal states
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedData, setSelectedData] = useState(null);
+
+  // 🔹 Dengarkan perubahan auth user
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser || null);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // 🔹 Ambil daftar jenis penyakit
+  useEffect(() => {
+    const fetchJenis = async () => {
+      const querySnapshot = await getDocs(collection(db, "jenis_penyakit"));
+      const data = querySnapshot.docs.map((doc) => ({
+        value: doc.id,
+        label: doc.data().nama_jenis,
+        tips: doc.data().tips,
+      }));
+      setJenisList(data);
+    };
+    fetchJenis();
+  }, []);
+
+  // 🔹 Ambil data penyakit
+  const fetchData = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const jenisSnapshot = await getDocs(collection(db, "jenis_penyakit"));
+      const jenisMap = {};
+      jenisSnapshot.forEach((docItem) => {
+        jenisMap[docItem.id] = docItem.data().nama_jenis;
+      });
+
+      const q = query(
+        collection(db, "data_penyakit"),
+        where("user_id", "==", user.uid)
+      );
+      const snapshot = await getDocs(q);
+
+      const list = snapshot.docs.map((docItem) => {
+        const data = docItem.data();
+        const namaJenis = jenisMap[data.id_jenis_penyakit] || "-";
+        return { id: docItem.id, ...data, nama_jenis_penyakit: namaJenis };
+      });
+      setDataPenyakit(list);
+    } catch (error) {
+      console.error("Gagal mengambil data penyakit:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]); // ✅ dependensi aman
+
+  useEffect(() => {
+    if (user) fetchData();
+  }, [user, fetchData]);
+
+  // 🔹 Tentukan status otomatis
+  const tentukanStatus = (jenis, hasil) => {
+    if (!jenis || hasil === "") return "";
+    const val = parseFloat(hasil);
+
+    if (jenis.label.toLowerCase().includes("kolesterol")) {
+      if (val < 100) return "Optimal";
+      if (val <= 129) return "Dekat Optimal / Di Atas Optimal";
+      if (val <= 159) return "Garis Batas Tinggi";
+      if (val <= 189) return "Tinggi";
+      return "Sangat Tinggi";
+    }
+
+    if (jenis.label.toLowerCase().includes("gula darah puasa")) {
+      
+      if (val < 100) return "Normal";
+      if (val >= 100 && val <= 125) return "Prediabetes";
+      if (val >= 126) return "Diabetes";
+    } else if (
+      jenis.label.toLowerCase().includes("gula darah") ||
+      jenis.label.toLowerCase().includes("gula")
+    ) {
+      
+      if (val < 140) return "Normal";
+      if (val >= 140 && val <= 199) return "Prediabetes";
+      if (val >= 200) return "Diabetes";
+    }
+
+    if (jenis.label.toLowerCase().includes("tekanan darah")) {
+      if (val < 120) return "Normal";
+      if (val <= 139) return "Hipertensi";
+      return "Tinggi";
+    }
+
+    return "Perlu Konsultasi";
+  };
+
+  // 🔹 Tambah atau pilih jenis
+  const handleChange = async (newValue) => {
+    if (!newValue) return;
+    if (!newValue.__isNew__) {
+      setSelectedJenis(newValue);
+      setTips(newValue.tips || "");
+      if (hasilLab) setStatus(tentukanStatus(newValue, hasilLab));
+    } else {
+      const newDoc = await addDoc(collection(db, "jenis_penyakit"), {
+        nama_jenis: newValue.label,
+        tips: "",
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+      const newOption = { value: newDoc.id, label: newValue.label, tips: "" };
+      setJenisList((prev) => [...prev, newOption]);
+      setSelectedJenis(newOption);
+      setTips("");
+    }
+  };
+
+  // 🔹 Update status otomatis
+  useEffect(() => {
+    if (selectedJenis && hasilLab !== "") {
+      setStatus(tentukanStatus(selectedJenis, hasilLab));
+    }
+  }, [hasilLab, selectedJenis]);
+
+  // 🔹 Tambah data
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedJenis || !hasilLab || !bulan || !namaPenyakit) {
+      alert("Harap isi semua field terlebih dahulu.");
+      return;
+    }
+    try {
+      setLoadingStatus("loading");
+      await addDoc(collection(db, "data_penyakit"), {
+        user_id: user?.uid || "",
+        id_jenis_penyakit: selectedJenis.value,
+        nama_penyakit: namaPenyakit,
+        hasil_lab: parseFloat(hasilLab),
+        bulan,
+        status,
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+      setLoadingStatus("success");
+      setShowAddModal(false);
+      fetchData();
+      resetForm();
+    } catch (error) {
+      console.error("Gagal menyimpan data penyakit:", error);
+      setLoadingStatus("error");
+    }
+  };
+
+  // 🔹 Edit data
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setLoadingStatus("loading");
+      const ref = doc(db, "data_penyakit", selectedData.id);
+      await updateDoc(ref, {
+        id_jenis_penyakit: selectedJenis.value,
+        nama_penyakit: namaPenyakit,
+        hasil_lab: parseFloat(hasilLab),
+        bulan,
+        status,
+        updated_at: new Date(),
+      });
+      setLoadingStatus("success");
+      setShowEditModal(false);
+      fetchData();
+      resetForm();
+    } catch (error) {
+      console.error("Gagal mengupdate data:", error);
+      setLoadingStatus("error");
+    }
+  };
+
+  // 🔹 Hapus data
+  const handleDelete = async () => {
+    try {
+      setLoadingStatus("loading");
+      await deleteDoc(doc(db, "data_penyakit", selectedData.id));
+      setLoadingStatus("success");
+      setShowDeleteModal(false);
+      fetchData();
+    } catch (error) {
+      console.error("Gagal menghapus data:", error);
+      setLoadingStatus("error");
+    }
+  };
+
+  const resetForm = () => {
+    setSelectedJenis(null);
+    setNamaPenyakit("");
+    setHasilLab("");
+    setBulan("");
+    setStatus("");
+    setTips("");
+  };
+
+  // 🔹 Kolom tabel
+  const columns = [
+    {
+      name: "Nama Penyakit",
+      selector: (row) => row.nama_penyakit,
+      sortable: true,
+    },
+    {
+      name: "Jenis",
+      selector: (row) => row.nama_jenis_penyakit,
+      sortable: true,
+    },
+    { name: "Hasil Lab", selector: (row) => row.hasil_lab, sortable: true },
+    { name: "Status", selector: (row) => row.status, sortable: true },
+    { name: "Bulan", selector: (row) => row.bulan, sortable: true },
+    {
+      name: "Aksi",
+      cell: (row) => (
+        <div className="flex flex-wrap gap-2 justify-center">
+          <button
+            onClick={() => {
+              setSelectedData(row);
+              setSelectedJenis(
+                jenisList.find((j) => j.label === row.nama_jenis_penyakit) || null
+              );
+              setNamaPenyakit(row.nama_penyakit);
+              setHasilLab(row.hasil_lab);
+              setBulan(row.bulan);
+              setStatus(row.status);
+              setShowEditModal(true);
+            }}
+            className="flex items-center gap-1 bg-yellow-500 hover:bg-yellow-600 text-white 
+                      px-2 py-1 rounded text-xs sm:text-sm transition-all duration-200 
+                      active:scale-95"
+          >
+            <Pencil size={14} />
+            <span className="hidden sm:inline">Edit</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setSelectedData(row);
+              setShowDeleteModal(true);
+            }}
+            className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white 
+                      px-2 py-1 rounded text-xs sm:text-sm transition-all duration-200 
+                      active:scale-95"
+          >
+            <Trash2 size={14} />
+            <span className="hidden sm:inline">Hapus</span>
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="flex min-h-screen bg-gray-100">
+      <div className="fixed top-0 left-0 z-50">
+        <SidebarUser />
+      </div>
+
+      <div className="lg:ml-64 mt-14 p-8 w-full">
+        {loadingStatus && (
+          <FullScreenLoader
+            status={loadingStatus}
+            message={
+              loadingStatus === "loading"
+                ? "Memproses..."
+                : loadingStatus === "success"
+                ? "Berhasil!"
+                : "Terjadi kesalahan!"
+            }
+          />
+        )}
+
+        {/* Header */}
+        <div className="flex flex-col bg-white p-5 rounded-md sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <h2 className="text-green-600 text-lg sm:text-xl font-bold">
+            Riwayat Data Penyakit
+          </h2>
+          <button
+            onClick={() => {
+              resetForm();
+              setShowAddModal(true);
+            }}
+            className="bg-blue-600 text-white px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base rounded-lg shadow-md hover:bg-blue-700 transition duration-300"
+          >
+            + Tambah Data
+          </button>
+        </div>
+
+        {/* Tabel */}
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          {loading ? (
+            <p className="text-center text-gray-500 py-10">Memuat data...</p>
+          ) : dataPenyakit.length === 0 ? (
+            <p className="text-center text-gray-500 py-10">
+              Belum ada data penyakit.
+            </p>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={dataPenyakit}
+              pagination
+              highlightOnHover
+              striped
+              responsive
+            />
+          )}
+        </div>
+      </div>
+
+      {/* 🔹 Modal Tambah/Edit */}
+      {(showAddModal || showEditModal) && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-3">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-lg relative">
+            <button
+              onClick={() => {
+                showAddModal ? setShowAddModal(false) : setShowEditModal(false);
+              }}
+              className="absolute top-2 right-3 text-gray-500 hover:text-gray-700 text-xl"
+            >
+              ✕
+            </button>
+
+            <h2 className="text-xl font-bold mb-4 text-center">
+              {showAddModal ? "Tambah Data Penyakit" : "Edit Data Penyakit"}
+            </h2>
+
+            <form
+              onSubmit={showAddModal ? handleSubmit : handleEditSubmit}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block font-semibold mb-2 text-gray-700">
+                  Jenis Penyakit:
+                </label>
+                <CreatableSelect
+                  isClearable
+                  onChange={handleChange}
+                  options={jenisList}
+                  value={selectedJenis}
+                  placeholder="Ketik atau pilih jenis penyakit..."
+                />
+                {tips && (
+                  <div className="bg-green-50 border border-green-200 text-green-700 p-3 mt-3 rounded">
+                    <strong>Tips:</strong> {tips}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-2 text-gray-700">
+                  Nama Penyakit:
+                </label>
+                <input
+                  type="text"
+                  value={namaPenyakit}
+                  onChange={(e) => setNamaPenyakit(e.target.value)}
+                  className="border p-2 w-full rounded"
+                  placeholder="Masukkan nama penyakit..."
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-2 text-gray-700">
+                  Hasil Lab:
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={hasilLab}
+                  onChange={(e) => setHasilLab(e.target.value)}
+                  className="border p-2 w-full rounded"
+                  placeholder="Masukkan hasil lab..."
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-2 text-gray-700">
+                  Bulan:
+                </label>
+                <select
+                  value={bulan}
+                  onChange={(e) => setBulan(e.target.value)}
+                  className="border p-2 w-full rounded"
+                >
+                  <option value="">Pilih bulan...</option>
+                  {[
+                    "Januari",
+                    "Februari",
+                    "Maret",
+                    "April",
+                    "Mei",
+                    "Juni",
+                    "Juli",
+                    "Agustus",
+                    "September",
+                    "Oktober",
+                    "November",
+                    "Desember",
+                  ].map((b) => (
+                    <option key={b} value={b}>
+                      {b}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-2 text-gray-700">
+                  Status (Otomatis):
+                </label>
+                <input
+                  type="text"
+                  value={status}
+                  readOnly
+                  className="border p-2 w-full rounded bg-gray-100"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 w-full"
+              >
+                {showAddModal ? "Simpan" : "Perbarui"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🔹 Modal Hapus */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-sm text-center">
+            <h2 className="text-lg font-semibold mb-4">Hapus Data?</h2>
+            <p className="text-gray-600 mb-6">
+              Apakah kamu yakin ingin menghapus data{" "}
+              <strong>{selectedData.nama_penyakit}</strong>?
+            </p>
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleDelete}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+              >
+                Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

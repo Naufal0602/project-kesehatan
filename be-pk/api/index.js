@@ -4,8 +4,15 @@ import cors from "cors";
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import dotenv from "dotenv";
+import path from "path";           // 🔹 harus diimport
+import { fileURLToPath } from "url"; // 🔹 untuk ESM __dirname
 
-dotenv.config();
+// 🔹 Setup __dirname di ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// 🔹 Load .env dari folder be-pk
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 const app = express();
 app.use(cors());
@@ -84,6 +91,9 @@ app.delete("/delete", async (req, res) => {
 });
 
 // ==================================================
-// 🧩 Export handler untuk Vercel
+// 🔸 Jalankan server lokal (opsional)
+app.listen(3030, () => console.log("Server running on port 3030"));
+
 // ==================================================
+// 🧩 Export handler untuk Vercel (jika deploy)
 export default app;

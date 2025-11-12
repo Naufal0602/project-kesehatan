@@ -75,7 +75,6 @@ const TambahTingkatan = () => {
     }
   };
 
-  // 🔹 Hapus data
   const handleDelete = async (id) => {
     const confirm = window.confirm("Yakin ingin menghapus tingkatan ini?");
     if (!confirm) return;
@@ -121,14 +120,12 @@ const TambahTingkatan = () => {
         <Sidebar />
       </div>
 
-      {/* Konten utama */}
       <div className="flex-1 md:ml-64 mt-14 p-4 sm:p-6 w-full">
         <h1 className="text-2xl font-bold mb-6 text-green-600 text-center md:text-left">
           Data Tingkatan
         </h1>
 
         <div className="flex flex-col md:flex-row justify-between gap-6">
-          {/* Form Tambah */}
           <div className="bg-white rounded-2xl shadow p-6 h-full w-full md:max-w-lg">
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
@@ -160,7 +157,6 @@ const TambahTingkatan = () => {
             )}
           </div>
 
-          {/* Daftar Tingkatan */}
           <div className="bg-white rounded-2xl shadow p-6 w-full relative h-60 overflow-hidden">
             <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <h1 className="font-bold mb-3 text-green-600 text-center md:text-left text-sm sm:text-base">
@@ -242,7 +238,7 @@ const TambahTingkatan = () => {
         </div>
       </div>
 
-      {/* Modal Edit */}
+      
       {showEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-6">

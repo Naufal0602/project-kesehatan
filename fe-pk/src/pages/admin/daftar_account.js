@@ -140,7 +140,6 @@ const DaftarAccount = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {/* 🔹 Sidebar tetap */}
       <div className="fixed top-0 left-0 z-50">
         <Sidebar />
       </div>

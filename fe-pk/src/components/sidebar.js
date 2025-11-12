@@ -20,8 +20,8 @@ const Sidebar = () => {
   const menuItems = [
     { to: "/admin/dashboard", label: "Dashboard", icon: <House /> },
     { to: "/admin/data_umum/index", label: "Data Umum", icon: <ClipboardList /> },
-    { to: "/admin/materi", label: "Data Materi", icon: <LibraryBig /> },
-    { to: "/admin/penyakit", label: "Data Penyakit", icon: <HeartPulse /> },
+    { to: "/admin/data_materi/index", label: "Data Materi", icon: <LibraryBig /> },
+    { to: "/admin/data_penyakit/index", label: "Data Penyakit", icon: <HeartPulse /> },
     { to: "/admin/tingkatan", label: "Tingkatan", icon: <Layers /> },
     { to: "/admin/daftar-account", label: "Daftar Akun Pengguna", icon: <Users /> },
     { to: "/admin/confirm-account", label: "Daftar Akun Tertunda", icon: <ClockFading /> },

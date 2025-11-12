@@ -10,9 +10,16 @@ import ConfirmAccount from "../pages/admin/confirm_account";
 import DaftarAccount from "../pages/admin/daftar_account";
 
 import DataUmum from "../pages/admin/data_umum/index";
+import DataMateri from "../pages/admin/data_materi/index";
+import AdminDataPenyakit from "../pages/admin/data_penyakit/index";
+
+
 
 import UserDashboard from "../pages/user/dashboard";
 import UserDataUmum from "../pages/user/data_umum/index";
+import UserDataPenyakit from "../pages/user/data_penyakit/index";
+
+
 import NotFound from "../pages/errors/404";
 import ProtectedRouteByRole from "../components/ProtectedRouteByRole";
 
@@ -37,12 +44,15 @@ function App() {
           <Route path="/admin/tingkatan" element={<Tingkatan />} />
           <Route path="/admin/daftar-account" element={<DaftarAccount />} />
           <Route path="/admin/data_umum/index" element={<DataUmum />} />
+          <Route path="/admin/data_materi/index" element={<DataMateri />} />
+          <Route path="/admin/data_penyakit/index" element={<AdminDataPenyakit />} />
         </Route>
 
         {/* halaman user, hanya bisa diakses role: 'user' */}
         <Route element={<ProtectedRouteByRole allowedRole="user" />}>
           <Route path="/user/dashboard" element={<UserDashboard />} />
           <Route path="/user/data_umum/index" element={<UserDataUmum />} />
+          <Route path="/user/data_penyakit/index" element={<UserDataPenyakit />} />
         </Route>
 
         {/* fallback 404 */}

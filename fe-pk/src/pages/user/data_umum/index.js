@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import SidebarUser from "../../../components/sidebar_user";
-import LogoutButton from "../../../components/logout_button";
 import DataTable from "react-data-table-component";
 import { db } from "../../../services/firebaseConfig";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
@@ -141,10 +140,10 @@ const UserDataUmum = () => {
       <div className="lg:ml-64 mt-14 p-6 w-full">
         <div className="bg-white p-6 rounded-lg shadow-md">
           <div className="flex flex-col md:flex-row justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold mb-4 md:mb-0">📄 Data Umum</h1>
+            <h1 className="text-2xl font-bold mb-4 md:mb-0 text-green-600">Data Umum</h1>
 
             {/* 🔹 Filter tanggal */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap sm:justify-center items-center gap-2">
               <input
                 type="date"
                 className="border rounded-lg px-3 py-2 text-sm"
@@ -160,7 +159,7 @@ const UserDataUmum = () => {
               />
               <button
                 onClick={handleFilter}
-                className="bg-blue-500 text-white px-3 py-2 rounded-lg flex items-center gap-1 hover:bg-blue-600"
+                className="bg-blue-500 text-white px-3 py-2 justify-left rounded-lg flex items-center gap-1 hover:bg-blue-600"
               >
                 <Search size={16} /> Filter
               </button>
@@ -185,10 +184,6 @@ const UserDataUmum = () => {
               responsive
             />
           )}
-
-          <div className="mt-6 text-center">
-            <LogoutButton />
-          </div>
         </div>
       </div>
 

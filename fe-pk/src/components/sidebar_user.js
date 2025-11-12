@@ -4,59 +4,61 @@ import { HeartPulse, LibraryBig, House, ChevronDown } from "lucide-react";
 import LogoutButton from "./logout_button";
 import { auth, db } from "../services/firebaseConfig";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
 const Sidebar = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
-  const [userName, setUserName] = useState("Admin");
+  const [userName, setUserName] = useState("User");
   const [userPhoto, setUserPhoto] = useState(null);
   const location = useLocation();
 
   const menuItems = [
     { to: "/user/dashboard", label: "Dashboard", icon: <House /> },
-    { to: "/user/materi", label: "Data Materi", icon: <LibraryBig /> },
-    { to: "/user/penyakit", label: "Data Penyakit", icon: <HeartPulse /> },
+    { to: "/user/data_materi/index", label: "Data Materi", icon: <LibraryBig /> },
+    { to: "/user/data_penyakit/index", label: "Data Penyakit", icon: <HeartPulse /> },
     { to: "/user/data_umum/index", label: "Data Umum", icon: <HeartPulse /> },
   ];
 
-  // 🔹 Ambil nama dan foto user dari Firestore
+  // 🔹 Dengar perubahan user login dan ambil data dari Firestore
   useEffect(() => {
-    const fetchUserData = async () => {
-      const user = auth.currentUser;
-      if (!user) return;
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        try {
+          let nama = currentUser.displayName || "User";
 
-      try {
-        // Ambil nama dari koleksi users
-        const userRef = doc(db, "users", user.uid);
-        const userSnap = await getDoc(userRef);
-        let nama = user.displayName || "Admin";
-
-        if (userSnap.exists()) {
-          nama = userSnap.data().nama || nama;
-        }
-
-        setUserName(nama);
-
-        // Ambil foto dari koleksi data_spesifik berdasarkan user_id
-        const q = query(
-          collection(db, "data_spesifik"),
-          where("user_id", "==", user.uid)
-        );
-        const spesifikSnap = await getDocs(q);
-
-        if (!spesifikSnap.empty) {
-          const data = spesifikSnap.docs[0].data();
-          if (data.foto) {
-            // kalau foto berupa object { url, public_id }, ambil url-nya
-            setUserPhoto(typeof data.foto === "object" ? data.foto.url : data.foto);
+          // Cek di koleksi "users"
+          const userRef = doc(db, "users", currentUser.uid);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            nama = userSnap.data().nama || nama;
           }
-        }
-      } catch (error) {
-        console.error("Gagal ambil data user:", error);
-      }
-    };
 
-    fetchUserData();
+          setUserName(nama);
+
+          // 🔹 Ambil foto dari koleksi "data_spesifik" berdasarkan user_id
+          const q = query(
+            collection(db, "data_spesifik"),
+            where("user_id", "==", currentUser.uid)
+          );
+          const spesifikSnap = await getDocs(q);
+
+          if (!spesifikSnap.empty) {
+            const data = spesifikSnap.docs[0].data();
+            if (data.foto) {
+              setUserPhoto(typeof data.foto === "object" ? data.foto.url : data.foto);
+            }
+          }
+        } catch (error) {
+          console.error("Gagal ambil data user:", error);
+        }
+      } else {
+        setUserName("User");
+        setUserPhoto(null);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   return (
@@ -107,7 +109,7 @@ const Sidebar = () => {
             />
           ) : (
             <div className="bg-white rounded-full w-40 h-40 flex items-center justify-center text-green-600 font-bold text-2xl">
-              {userName?.charAt(0) || "A"}
+              {userName?.charAt(0) || "U"}
             </div>
           )}
           <h2 className="text-4xl font-bold mb-6 dynapuff">MOVEON</h2>
@@ -164,7 +166,7 @@ const Sidebar = () => {
             />
           ) : (
             <div className="bg-white rounded-full w-32 h-32 flex items-center justify-center text-green-600 font-bold text-2xl">
-              {userName?.charAt(0) || "A"}
+              {userName?.charAt(0) || "U"}
             </div>
           )}
           <h2 className="text-3xl font-bold mb-4 dynapuff">MOVEON</h2>

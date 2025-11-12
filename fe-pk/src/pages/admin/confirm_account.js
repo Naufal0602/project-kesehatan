@@ -7,6 +7,7 @@ import {
   deleteDoc,
   setDoc,
   serverTimestamp,
+  getDoc,
 } from "firebase/firestore";
 import { auth, db } from "../../services/firebaseConfig";
 import { createUserWithEmailAndPassword } from "firebase/auth";
@@ -25,10 +26,29 @@ const ConfirmAccount = () => {
       setLoading(true);
       try {
         const querySnapshot = await getDocs(collection(db, "pending_users"));
-        const users = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        const users = await Promise.all(
+          querySnapshot.docs.map(async (docSnap) => {
+            const data = docSnap.data();
+
+            // Ambil nama_tingkatan dari koleksi tingkatan
+            let nama_tingkatan = "-";
+            if (data.id_tingkatan) {
+              const tingkatanDoc = await getDoc(
+                doc(db, "tingkatan", data.id_tingkatan)
+              );
+              if (tingkatanDoc.exists()) {
+                nama_tingkatan = tingkatanDoc.data().nama_tingkatan;
+              }
+            }
+
+            return {
+              id: docSnap.id,
+              ...data,
+              nama_tingkatan,
+            };
+          })
+        );
+
         setPendingUsers(users);
       } catch (err) {
         console.error("Gagal mengambil data pending_users:", err);
@@ -109,7 +129,9 @@ const ConfirmAccount = () => {
 
       if (!response.ok || result.error) {
         console.error("❌ Gagal hapus foto di Cloudinary:", result);
-        alert("Gagal menghapus foto di Cloudinary. Data belum dihapus dari Firestore.");
+        alert(
+          "Gagal menghapus foto di Cloudinary. Data belum dihapus dari Firestore."
+        );
         return;
       }
 
@@ -160,9 +182,10 @@ const ConfirmAccount = () => {
                   <th className="py-3 px-4 text-left hidden sm:table-cell">
                     Lembaga
                   </th>
-                  <th className="py-3 px-4 text-left hidden md:table-cell">
+                  <th className="py-3 px-4 text-left hidden md:table-cell capitalize">
                     Tingkatan
                   </th>
+
                   <th className="py-3 px-4 text-center">Aksi</th>
                 </tr>
               </thead>
@@ -178,7 +201,7 @@ const ConfirmAccount = () => {
                       {user.lembaga}
                     </td>
                     <td className="py-3 px-4 hidden md:table-cell capitalize">
-                      {user.id_tingkatan || "-"}
+                      {user.nama_tingkatan || "-"}
                     </td>
                     <td className="py-3 px-4 flex flex-col sm:flex-row justify-center items-center gap-2">
                       <button
@@ -227,16 +250,36 @@ const ConfirmAccount = () => {
             </h2>
 
             <div className="space-y-2 text-gray-700">
-              <p><strong>Nama:</strong> {selectedUser.nama}</p>
-              <p><strong>Email:</strong> {selectedUser.email}</p>
-              <p><strong>Lembaga:</strong> {selectedUser.lembaga}</p>
-              <p><strong>Tingkatan:</strong> {selectedUser.id_tingkatan}</p>
-              <p><strong>NRP:</strong> {selectedUser.nrp}</p>
-              <p><strong>Jenis Kelamin:</strong> {selectedUser.jenis_kelamin}</p>
-              <p><strong>Tempat, Tanggal Lahir:</strong> {selectedUser.ttl}</p>
-              <p><strong>Cabang:</strong> {selectedUser.cabang}</p>
-              <p><strong>KTA:</strong> {selectedUser.kta}</p>
-              <p><strong>LSPSN:</strong> {selectedUser.lspsn}</p>
+              <p>
+                <strong>Nama:</strong> {selectedUser.nama}
+              </p>
+              <p>
+                <strong>Email:</strong> {selectedUser.email}
+              </p>
+              <p>
+                <strong>Lembaga:</strong> {selectedUser.lembaga}
+              </p>
+              <p>
+                <strong>Tingkatan:</strong> {selectedUser.nama_tingkatan}
+              </p>
+              <p>
+                <strong>NRP:</strong> {selectedUser.nrp}
+              </p>
+              <p>
+                <strong>Jenis Kelamin:</strong> {selectedUser.jenis_kelamin}
+              </p>
+              <p>
+                <strong>Tempat, Tanggal Lahir:</strong> {selectedUser.ttl}
+              </p>
+              <p>
+                <strong>Cabang:</strong> {selectedUser.cabang}
+              </p>
+              <p>
+                <strong>KTA:</strong> {selectedUser.kta}
+              </p>
+              <p>
+                <strong>LSPSN:</strong> {selectedUser.lspsn}
+              </p>
 
               {selectedUser.foto && (
                 <div className="mt-4">
