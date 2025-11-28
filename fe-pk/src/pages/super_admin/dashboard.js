@@ -1,8 +1,5 @@
 import React from "react";
-// import { auth } from "../../services/firebaseConfig";
-// import { signOut } from "firebase/auth";
-// import { useNavigate } from "react-router-dom";
-import Sidebar from "../../components/sidebar";
+import Sidebar from "../../components/sidebar_super_admin";
 
 const AdminDashboard = () => {
   return (

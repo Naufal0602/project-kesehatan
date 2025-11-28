@@ -15,7 +15,9 @@ import {
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import FullScreenLoader from "../../../components/FullScreenLoader";
-import { Trash2, Pencil } from 'lucide-react';
+import { Trash2, Pencil } from "lucide-react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 export default function UserDataPenyakit() {
   const [user, setUser] = useState(null);
@@ -106,7 +108,6 @@ export default function UserDataPenyakit() {
     }
 
     if (jenis.label.toLowerCase().includes("gula darah puasa")) {
-      
       if (val < 100) return "Normal";
       if (val >= 100 && val <= 125) return "Prediabetes";
       if (val >= 126) return "Diabetes";
@@ -114,7 +115,6 @@ export default function UserDataPenyakit() {
       jenis.label.toLowerCase().includes("gula darah") ||
       jenis.label.toLowerCase().includes("gula")
     ) {
-      
       if (val < 140) return "Normal";
       if (val >= 140 && val <= 199) return "Prediabetes";
       if (val >= 200) return "Diabetes";
@@ -132,17 +132,23 @@ export default function UserDataPenyakit() {
   // 🔹 Tambah atau pilih jenis
   const handleChange = async (newValue) => {
     if (!newValue) return;
+
+    // Jika memilih opsi yang sudah ada
     if (!newValue.__isNew__) {
       setSelectedJenis(newValue);
       setTips(newValue.tips || "");
       if (hasilLab) setStatus(tentukanStatus(newValue, hasilLab));
-    } else {
+    }
+    // Jika mengetik jenis penyakit baru
+    else {
       const newDoc = await addDoc(collection(db, "jenis_penyakit"), {
         nama_jenis: newValue.label,
-        tips: "",
+        obat: [""], // biar langsung muncul di Firestore
+        antisipasi: [""],
         created_at: new Date(),
         updated_at: new Date(),
       });
+
       const newOption = { value: newDoc.id, label: newValue.label, tips: "" };
       setJenisList((prev) => [...prev, newOption]);
       setSelectedJenis(newOption);
@@ -247,7 +253,15 @@ export default function UserDataPenyakit() {
     },
     { name: "Hasil Lab", selector: (row) => row.hasil_lab, sortable: true },
     { name: "Status", selector: (row) => row.status, sortable: true },
-    { name: "Bulan", selector: (row) => row.bulan, sortable: true },
+    {
+      name: "Bulan",
+      selector: (row) =>
+        new Date(row.bulan.seconds * 1000).toLocaleDateString("id-ID", {
+          month: "long",
+          year: "numeric",
+        }),
+      sortable: true,
+    },
     {
       name: "Aksi",
       cell: (row) => (
@@ -256,11 +270,12 @@ export default function UserDataPenyakit() {
             onClick={() => {
               setSelectedData(row);
               setSelectedJenis(
-                jenisList.find((j) => j.label === row.nama_jenis_penyakit) || null
+                jenisList.find((j) => j.label === row.nama_jenis_penyakit) ||
+                  null
               );
               setNamaPenyakit(row.nama_penyakit);
               setHasilLab(row.hasil_lab);
-              setBulan(row.bulan);
+              setBulan(new Date(row.bulan.seconds * 1000));
               setStatus(row.status);
               setShowEditModal(true);
             }}
@@ -416,31 +431,15 @@ export default function UserDataPenyakit() {
                 <label className="block font-semibold mb-2 text-gray-700">
                   Bulan:
                 </label>
-                <select
-                  value={bulan}
-                  onChange={(e) => setBulan(e.target.value)}
+
+                <DatePicker
+                  selected={bulan}
+                  onChange={(date) => setBulan(date)}
+                  dateFormat="MMMM yyyy"
+                  showMonthYearPicker
                   className="border p-2 w-full rounded"
-                >
-                  <option value="">Pilih bulan...</option>
-                  {[
-                    "Januari",
-                    "Februari",
-                    "Maret",
-                    "April",
-                    "Mei",
-                    "Juni",
-                    "Juli",
-                    "Agustus",
-                    "September",
-                    "Oktober",
-                    "November",
-                    "Desember",
-                  ].map((b) => (
-                    <option key={b} value={b}>
-                      {b}
-                    </option>
-                  ))}
-                </select>
+                  placeholderText="Pilih bulan..."
+                />
               </div>
 
               <div>

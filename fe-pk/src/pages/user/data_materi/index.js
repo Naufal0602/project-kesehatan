@@ -2,67 +2,29 @@ import React, { useEffect, useState, useMemo, useCallback } from "react";
 import SidebarUser from "../../../components/sidebar_user";
 import {
   collection,
-  addDoc,
   getDocs,
   query,
   where,
-  updateDoc,
-  deleteDoc,
   doc,
-  serverTimestamp,
+  getDoc,
 } from "firebase/firestore";
 import { db, auth } from "../../../services/firebaseConfig";
 import DataTable from "react-data-table-component";
-import {
-  Loader2,
-  Plus,
-  Edit,
-  X,
-  CheckCircle,
-  XCircle,
-  Eye,
-  Trash2,
-} from "lucide-react";
+import { Eye, FileText } from "lucide-react";
 import FullScreenLoader from "../../../components/FullScreenLoader";
-import ConfirmModal from "../../../components/ConfirmModal";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
-  const initialFormData = {
-    id: "",
-    id_data_umum: "",
-    index_masa_tubuh: "",
-    kelenturan: "",
-    vo2max: "",
-    push_up_mnt: "",
-    sit_up_mnt: "",
-    squad_mnt: "",
-    tahan_napas_detik: "",
-    tanggal_pengujian: "",
-  };
-const DataMateriUser = () => {
-  const [loading, setLoading] = useState(true);
-  const [submitLoading, setSubmitLoading] = useState(false);
-  const [dataUmumLoading, setDataUmumLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState(false);
-  const [dataMateri, setDataMateri] = useState([]);
-  const [dataUmumList, setDataUmumList] = useState([]);
-  const [showFormModal, setShowFormModal] = useState(false);
-  const [showDetailModal, setShowDetailModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedData, setSelectedData] = useState(null);
-
-// --- Komponen Modal Info Detail ---
 const DetailModal = ({ data, onClose }) => {
   const fields = [
-    { label: "ID Data Umum", key: "id_data_umum" },
     { label: "Tanggal Pengujian", key: "tanggal_pengujian" },
-    { label: "IMT (Index Masa Tubuh)", key: "index_masa_tubuh", unit: "" },
-    { label: "Kelenturan", key: "kelenturan", unit: "cm" },
-    { label: "VO2Max", key: "vo2max", unit: "mL/(kg.min)" },
-    { label: "Push Up (mnt)", key: "push_up_mnt", unit: "kali" },
-    { label: "Sit Up (mnt)", key: "sit_up_mnt", unit: "kali" },
-    { label: "Squat (mnt)", key: "squad_mnt", unit: "kali" },
-    { label: "Tahan Napas (detik)", key: "tahan_napas_detik", unit: "detik" },
+    { label: "IMT (Index Masa Tubuh)", key: "index_masa_tubuh" },
+    { label: "Kelenturan (cm)", key: "kelenturan" },
+    { label: "VO2Max (mL/kg.min)", key: "vo2max" },
+    { label: "Push Up (kali)", key: "push_up_mnt" },
+    { label: "Sit Up (kali)", key: "sit_up_mnt" },
+    { label: "Squat (kali)", key: "squad_mnt" },
+    { label: "Tahan Napas (detik)", key: "tahan_napas_detik" },
   ];
 
   return (
@@ -72,7 +34,7 @@ const DetailModal = ({ data, onClose }) => {
           className="absolute top-2 right-2 text-gray-500 hover:text-gray-800"
           onClick={onClose}
         >
-          <X size={20} />
+          ✕
         </button>
 
         <h2 className="text-xl font-bold mb-4 border-b pb-2">
@@ -84,8 +46,7 @@ const DetailModal = ({ data, onClose }) => {
             <div key={f.key} className="flex justify-between text-sm">
               <span className="font-medium text-gray-600">{f.label}:</span>
               <span className="font-semibold text-gray-800">
-                {data[f.key] || "-"}
-                {f.unit && <span className="text-xs font-normal ml-1 text-gray-500">{f.unit}</span>}
+                {data[f.key] ?? "-"}
               </span>
             </div>
           ))}
@@ -94,171 +55,274 @@ const DetailModal = ({ data, onClose }) => {
     </div>
   );
 };
-  const [formData, setFormData] = useState(initialFormData);
+
+const PrintModal = ({
+  isOpen,
+  onClose,
+  onPrintAll,
+  onPrintRange,
+  dateFrom,
+  setDateFrom,
+  dateTo,
+  setDateTo,
+  printing,
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl animate-fadeIn">
+        <h3 className="text-xl font-bold mb-4">Opsi Print</h3>
+
+        {/* Print Semua */}
+        <button
+          onClick={onPrintAll}
+          className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg hover:bg-gray-900 flex items-center justify-center mb-4"
+          disabled={printing}
+        >
+          <FileText size={18} className="mr-2" />
+          {printing ? "Mencetak..." : "Print Semua Data"}
+        </button>
+
+        <hr className="my-4" />
+
+        {/* Print Berdasarkan Tanggal */}
+        <p className="font-medium mb-2">Print Berdasarkan Tanggal:</p>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span>Dari</span>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="border p-2 rounded w-40"
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span>Sampai</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="border p-2 rounded w-40"
+            />
+          </div>
+        </div>
+
+        <div className="mt-5 flex gap-3">
+          <button
+            onClick={onPrintRange}
+            className="flex-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            disabled={printing}
+          >
+            {printing ? "Mencetak..." : "Print Range"}
+          </button>
+
+          <button
+            onClick={onClose}
+            className="px-4 py-2 border rounded"
+            disabled={printing}
+          >
+            Batal
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const DataMateriUser = () => {
+  const [loading, setLoading] = useState(true);
+  const [dataMateri, setDataMateri] = useState([]);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedData, setSelectedData] = useState(null);
+
+  // filter tanggal di halaman
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  // modal print
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
   const user = auth.currentUser;
 
-  // Fungsi untuk reset notifikasi
-  const resetNotifications = useCallback(() => {
-      setSuccess(false);
-      setError(false);
-  }, []);
-
-  // 🔹 Ambil data hasil tes kebugaran user
+  // fetch semua data_materi untuk peserta yang login (banyak dokumen)
   const fetchDataMateri = useCallback(async () => {
     setLoading(true);
     try {
-      if (!user || !user.uid) return;
-      const q = query(collection(db, "data_materi"), where("user_uid", "==", user.uid));
-      const snapshot = await getDocs(q);
-      const list = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      if (!user || !user.uid) {
+        setDataMateri([]);
+        return;
+      }
+      const q = query(
+        collection(db, "data_materi"),
+        where("peserta_id", "==", user.uid)
+      );
+      const snap = await getDocs(q);
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      // sort by tanggal (descending)
+      list.sort((a, b) => {
+        const da = new Date(a.tanggal_pengujian).getTime() || 0;
+        const db2 = new Date(b.tanggal_pengujian).getTime() || 0;
+        return db2 - da;
+      });
       setDataMateri(list);
     } catch (err) {
-      console.error(err);
-      setError(true);
+      console.error("fetchDataMateri:", err);
     } finally {
       setLoading(false);
     }
   }, [user]);
 
-  // 🔹 Ambil daftar data umum berdasarkan keberadaan/nilai 'materi'
-  const fetchDataUmum = useCallback(async () => {
-    setDataUmumLoading(true);
-    try {
-      // Query: Ambil data_umum di mana field 'materi' BUKAN string kosong.
-      const q = query(collection(db, "data_umum"), where("materi", "!=", "")); 
-      const snapshot = await getDocs(q);
-      const list = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setDataUmumList(list);
-    } catch (err) {
-      console.error("Gagal memuat data_umum:", err);
-    } finally {
-      setDataUmumLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    if (user) {
-      fetchDataMateri();
-      fetchDataUmum();
-    }
-  }, [user, fetchDataMateri, fetchDataUmum]);
-  
-// --- Aksi Tombol DIBUNGKUS useCallBack ---
+    fetchDataMateri();
+  }, [fetchDataMateri]);
+
+  // helper konversi tanggal string ke Date (mengasumsikan format 'YYYY-MM-DD')
+  const toDate = (s) => {
+    if (!s) return null;
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
+  // filtered data berdasarkan dateFrom/dateTo pada tampilan tabel
+  const filteredData = useMemo(() => {
+    if (!dateFrom && !dateTo) return dataMateri;
+    const from = dateFrom ? toDate(dateFrom) : null;
+    const to = dateTo ? toDate(dateTo) : null;
+    return dataMateri.filter((r) => {
+      const td = toDate(r.tanggal_pengujian);
+      if (!td) return false;
+      if (from && to) {
+        return td >= from && td <= to;
+      } else if (from) {
+        return td >= from;
+      } else if (to) {
+        return td <= to;
+      }
+      return true;
+    });
+  }, [dataMateri, dateFrom, dateTo]);
 
   const handleView = useCallback((row) => {
     setSelectedData(row);
     setShowDetailModal(true);
-    resetNotifications();
-  }, [resetNotifications]);
+  }, []);
 
-  const handleEdit = useCallback((row) => {
-    const stringified = Object.fromEntries(
-      Object.entries(row).map(([k, v]) => [k, String(v ?? "")])
-    );
-    setFormData(stringified);
-    setShowFormModal(true);
-    resetNotifications();
-  }, [resetNotifications]); // Tambahkan resetNotifications sebagai dependency
-
-  const handleDelete = useCallback((row) => {
-    setSelectedData(row);
-    setShowDeleteModal(true);
-    resetNotifications();
-  }, [resetNotifications]); // Tambahkan resetNotifications sebagai dependency
-
-  const handleAdd = useCallback(() => {
-    setFormData(initialFormData);
-    setShowFormModal(true);
-    resetNotifications();
-  }, [resetNotifications]); // Tambahkan resetNotifications sebagai dependency
-
-// --- END Aksi Tombol DIBUNGKUS useCallBack ---
-
-  // 🔹 Konfirmasi Hapus Data
-  const confirmDelete = async () => {
-    if (!selectedData) return;
-    setSubmitLoading(true);
-    setShowDeleteModal(false);
+  // ambil nama peserta dari users/{user.uid}
+  const fetchUserName = async (uid) => {
     try {
-      await deleteDoc(doc(db, "data_materi", selectedData.id));
-      setSuccess(true);
-      fetchDataMateri();
+      if (!uid) return null;
+      const ref = doc(db, "users", uid);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) return null;
+      const data = snap.data();
+      return data?.nama || null; // sesuai field 'nama' di Firestore
     } catch (err) {
-      console.error(err);
-      setError(true);
-    } finally {
-      setSubmitLoading(false);
-      setTimeout(() => resetNotifications(), 3000);
+      console.error("fetchUserName:", err);
+      return null;
     }
   };
 
-  // 🔹 Input handler
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  const generatePDF = useCallback(
+    async (rows) => {
+      setPrinting(true);
 
-  // 🔹 Simpan data (Tambah/Edit)
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitLoading(true);
-    resetNotifications();
-
-    try {
-      const cleanData = {
-        id_data_umum: formData.id_data_umum || "",
-        index_masa_tubuh: parseFloat(formData.index_masa_tubuh || 0),
-        kelenturan: parseFloat(formData.kelenturan || 0),
-        vo2max: parseFloat(formData.vo2max || 0),
-        push_up_mnt: parseInt(formData.push_up_mnt || 0, 10),
-        sit_up_mnt: parseInt(formData.sit_up_mnt || 0, 10),
-        squad_mnt: parseInt(formData.squad_mnt || 0, 10),
-        tahan_napas_detik: parseInt(formData.tahan_napas_detik || 0, 10),
-        tanggal_pengujian: formData.tanggal_pengujian,
-      };
-
-      if (formData.id) {
-        await updateDoc(doc(db, "data_materi", formData.id), {
-          ...cleanData,
-          updated_at: serverTimestamp(),
+      try {
+        const docPdf = new jsPDF({
+          orientation: "portrait",
+          unit: "pt",
+          format: "a4",
         });
-      } else {
-        await addDoc(collection(db, "data_materi"), {
-          ...cleanData,
-          user_uid: user.uid,
-          created_at: serverTimestamp(),
-          updated_at: serverTimestamp(),
+
+        const userName = await fetchUserName(user.uid);
+        const today = new Date();
+
+        const tanggalCetak = today.toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
         });
+
+        docPdf.setFontSize(16);
+        docPdf.text("Data Peserta", 40, 40);
+
+        docPdf.setFontSize(11);
+        docPdf.text(`Nama Peserta: ${userName}`, 40, 60);
+        docPdf.text(`Tanggal Cetak: ${tanggalCetak}`, 40, 75);
+
+        // Table
+        autoTable(docPdf, {
+          head: [
+            [
+              "No",
+              "Tanggal",
+              "IMT",
+              "Kelenturan",
+              "VO2Max",
+              "Push Up",
+              "Sit Up",
+              "Squat",
+              "Tahan Napas",
+            ],
+          ],
+          body: rows.map((r, idx) => [
+            idx + 1,
+            r.tanggal_pengujian,
+            r.index_masa_tubuh,
+            r.kelenturan,
+            r.vo2max,
+            r.push_up_mnt,
+            r.sit_up_mnt,
+            r.squad_mnt,
+            r.tahan_napas_detik,
+          ]),
+          startY: 100,
+          styles: { fontSize: 10 },
+        });
+
+        // Nama file
+        const fileDate = today.toISOString().slice(0, 19).replace(/:/g, "-");
+
+        docPdf.save(`hasil_tes_${userName}_${fileDate}.pdf`);
+      } finally {
+        setPrinting(false);
       }
+    },
+    [user]
+  );
 
-      setShowFormModal(false);
-      fetchDataMateri();
-      setSuccess(true);
-    } catch (err) {
-      console.error(err);
-      setError(true);
-    } finally {
-      setSubmitLoading(false);
-      setTimeout(() => resetNotifications(), 3000);
-    }
-  };
+  // handler print all / print range
+  const handlePrintAll = useCallback(async () => {
+    setShowPrintModal(false);
+    await generatePDF(dataMateri);
+  }, [dataMateri, generatePDF]);
 
-  // 🔹 Kolom tabel
+  const handlePrintRange = useCallback(async () => {
+    setShowPrintModal(false);
+    const from = dateFrom ? toDate(dateFrom) : null;
+    const to = dateTo ? toDate(dateTo) : null;
+
+    const rows = dataMateri.filter((r) => {
+      const td = toDate(r.tanggal_pengujian);
+      if (!td) return false;
+      if (from && to) return td >= from && td <= to;
+      if (from) return td >= from;
+      if (to) return td <= to;
+      return true;
+    });
+
+    await generatePDF(rows);
+  }, [dataMateri, dateFrom, dateTo, generatePDF]);
+
   const columns = useMemo(
     () => [
-      { name: "Tanggal", selector: (row) => row.tanggal_pengujian, sortable: true },
-      { 
-        name: "Data Umum", 
-        selector: (row) => row.id_data_umum ? (
-            dataUmumList.find(d => d.id === row.id_data_umum)?.nama_lengkap || row.id_data_umum
-        ) : "-",
-      },
-      { name: "IMT", selector: (row) => row.index_masa_tubuh, sortable: true },
-      { name: "VO2Max", selector: (row) => row.vo2max, sortable: true },
+      { name: "Tanggal", selector: (r) => r.tanggal_pengujian, sortable: true },
+      { name: "IMT", selector: (r) => r.index_masa_tubuh, sortable: true },
+      { name: "VO2Max", selector: (r) => r.vo2max, sortable: true },
       {
         name: "Aksi",
         cell: (row) => (
@@ -268,28 +332,13 @@ const DetailModal = ({ data, onClose }) => {
               className="bg-green-500 text-white p-1 rounded hover:bg-green-600 transition"
               title="Lihat Detail"
             >
-              <Eye size={16} />
-            </button>
-            <button
-              onClick={() => handleEdit(row)}
-              className="bg-blue-500 text-white p-1 rounded hover:bg-blue-600 transition"
-              title="Edit Data"
-            >
-              <Edit size={16} />
-            </button>
-            <button
-              onClick={() => handleDelete(row)}
-              className="bg-red-500 text-white p-1 rounded hover:bg-red-600 transition"
-              title="Hapus Data"
-            >
-              <Trash2 size={16} />
+              <Eye size={14} />
             </button>
           </div>
         ),
       },
     ],
-    // 🟢 PERBAIKAN: Masukkan handleView, handleEdit, handleDelete, dan dataUmumList
-    [handleView, handleEdit, handleDelete, dataUmumList] 
+    [handleView]
   );
 
   if (loading) return <FullScreenLoader />;
@@ -303,148 +352,86 @@ const DetailModal = ({ data, onClose }) => {
       <div className="lg:ml-64 mt-14 p-8 w-full">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold">Data Hasil Tes Kebugaran</h1>
-
-          <button
-            onClick={handleAdd}
-            className="flex items-center bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-          >
-            <Plus size={18} className="mr-1" /> Tambah Data
-          </button>
         </div>
 
-        {/* Notifikasi */}
-        {success && (
-          <div className="text-green-600 bg-green-100 p-3 rounded flex items-center mb-4">
-            <CheckCircle className="mr-2" size={20} /> Operasi berhasil!
+        {/* Filter Tanggal di Halaman */}
+        <div className="bg-white p-4 rounded shadow mb-4 flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
+          {/* Dari */}
+          <div className="flex flex-col w-full md:w-auto">
+            <label className="text-sm font-medium mb-1">Dari:</label>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="border p-2 rounded w-full"
+            />
           </div>
-        )}
-        {error && (
-          <div className="text-red-600 bg-red-100 p-3 rounded flex items-center mb-4">
-            <XCircle className="mr-2" size={20} /> Terjadi kesalahan saat menyimpan data.
+
+          {/* Sampai */}
+          <div className="flex flex-col w-full md:w-auto">
+            <label className="text-sm font-medium mb-1">Sampai:</label>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="border p-2 rounded w-full"
+            />
           </div>
-        )}
-        
-        {/* Tabel Data */}
+
+          {/* Buttons */}
+          <div className="flex flex-col gap-2 md:flex-row md:ml-auto md:items-center w-full md:w-auto">
+            <button
+              onClick={() => {
+                setDateFrom("");
+                setDateTo("");
+              }}
+              className="px-3 py-2 border rounded w-full md:w-auto"
+            >
+              Reset
+            </button>
+
+            <button
+              onClick={() => setShowPrintModal(true)}
+              className="px-3 py-2 bg-blue-600 text-white rounded w-full md:w-auto"
+            >
+              Print
+            </button>
+          </div>
+        </div>
+
+        {/* Tabel */}
         <DataTable
           columns={columns}
-          data={dataMateri}
+          data={filteredData}
           pagination
           highlightOnHover
           noDataComponent="Belum ada data hasil tes kebugaran."
-          className="shadow-lg rounded-lg"
+          className="shadow-lg rounded-lg bg-white"
         />
 
-        {/* Modal Form Tambah/Edit */}
-        {showFormModal && (
-          <div className="fixed inset-0 flex justify-center items-center bg-black bg-opacity-50 z-50 p-4">
-            <div className="bg-white p-6 rounded-lg w-full max-w-md relative">
-              <button
-                className="absolute top-2 right-2 text-gray-500 hover:text-gray-800"
-                onClick={() => setShowFormModal(false)}
-              >
-                <X size={20} />
-              </button>
-              <h2 className="text-lg font-semibold mb-4 border-b pb-2">
-                {formData.id ? "Edit Data" : "Tambah Data"}
-              </h2>
-
-              <form onSubmit={handleSubmit} className="space-y-3">
-                
-                {/* 🔹 Select Data Umum (Dropdown) */}
-                <label className="block text-sm font-medium text-gray-700">
-                  Pilih Data Umum (Terkait Materi)
-                </label>
-                <select
-                  name="id_data_umum"
-                  value={formData.id_data_umum}
-                  onChange={handleChange}
-                  className="border p-2 w-full rounded"
-                  disabled={dataUmumLoading}
-                >
-                  {dataUmumLoading ? (
-                    <option value="">Memuat Data Umum...</option>
-                  ) : (
-                    <option value="">-- Pilih Data Umum (Opsional) --</option>
-                  )}
-                  {!dataUmumLoading && dataUmumList.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.nama_lengkap || item.id}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Input lainnya */}
-                {[
-                  { name: "index_masa_tubuh", label: "Index Massa Tubuh (IMT)", step: "0.01" },
-                  { name: "kelenturan", label: "Kelenturan (cm)", step: "0.01" },
-                  { name: "vo2max", label: "VO2Max (mL/kg.min)", step: "0.01" },
-                  { name: "push_up_mnt", label: "Push Up (jumlah)", step: "1" },
-                  { name: "sit_up_mnt", label: "Sit Up (jumlah)", step: "1" },
-                  { name: "squad_mnt", label: "Squat (jumlah)", step: "1" },
-                  { name: "tahan_napas_detik", label: "Tahan Napas (detik)", step: "1" },
-                ].map((f) => (
-                  <input
-                    key={f.name}
-                    type="number"
-                    step={f.step}
-                    name={f.name}
-                    placeholder={f.label}
-                    value={formData[f.name]}
-                    onChange={handleChange}
-                    className="border p-2 w-full rounded"
-                    required
-                  />
-                ))}
-
-                {/* Input Tanggal */}
-                <label className="block text-sm font-medium text-gray-700">
-                  Tanggal Pengujian
-                </label>
-                <input
-                  type="date"
-                  name="tanggal_pengujian"
-                  value={formData.tanggal_pengujian}
-                  onChange={handleChange}
-                  className="border p-2 w-full rounded"
-                  required
-                />
-
-                <button
-                  type="submit"
-                  disabled={submitLoading}
-                  className="mt-4 bg-blue-600 text-white px-4 py-2 rounded w-full hover:bg-blue-700 flex items-center justify-center disabled:bg-blue-400"
-                >
-                  {submitLoading ? (
-                    <>
-                      <Loader2 className="animate-spin mr-2" size={18} />
-                      Menyimpan...
-                    </>
-                  ) : (
-                    "Simpan Data"
-                  )}
-                </button>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* Modal Detail (Info) */}
+        {/* Detail Modal */}
         {showDetailModal && selectedData && (
           <DetailModal
             data={selectedData}
-            onClose={() => setShowDetailModal(false)}
+            onClose={() => {
+              setShowDetailModal(false);
+              setSelectedData(null);
+            }}
           />
         )}
 
-        {/* Modal Hapus (ConfirmModal) */}
-        {showDeleteModal && selectedData && (
-          <ConfirmModal
-            title="Hapus Data"
-            message={`Apakah Anda yakin ingin menghapus hasil tes kebugaran pada tanggal ${selectedData.tanggal_pengujian}? Data yang dihapus tidak dapat dikembalikan.`}
-            onConfirm={confirmDelete}
-            onCancel={() => setShowDeleteModal(false)}
-          />
-        )}
+        {/* Print Modal */}
+        <PrintModal
+          isOpen={showPrintModal}
+          onClose={() => setShowPrintModal(false)}
+          onPrintAll={handlePrintAll}
+          onPrintRange={handlePrintRange}
+          dateFrom={dateFrom}
+          setDateFrom={setDateFrom}
+          dateTo={dateTo}
+          setDateTo={setDateTo}
+          printing={printing}
+        />
       </div>
     </div>
   );

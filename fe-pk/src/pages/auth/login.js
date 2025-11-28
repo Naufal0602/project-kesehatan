@@ -27,7 +27,11 @@ const Login = () => {
     setError("");
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
       const user = userCredential.user;
 
       // Ambil data user dari Firestore
@@ -36,9 +40,11 @@ const Login = () => {
 
       if (userDocSnap.exists()) {
         const userData = userDocSnap.data();
+
+        // Ambil role, default user biar ga error
         const role = userData.role?.toLowerCase() || "user";
 
-        // Simpan data user ke localStorage
+        // Simpan ke localStorage
         const savedUser = {
           uid: user.uid,
           email: user.email,
@@ -46,7 +52,10 @@ const Login = () => {
         };
         localStorage.setItem("user", JSON.stringify(savedUser));
 
-        if (role === "admin") {
+        // Routing berdasarkan role
+        if (role === "super_admin") {
+          navigate("/super_admin/dashboard");
+        } else if (role === "admin") {
           navigate("/admin/dashboard");
         } else {
           navigate("/user/dashboard");
@@ -56,7 +65,8 @@ const Login = () => {
       }
     } catch (err) {
       console.error("Error login:", err);
-      if (err.code === "auth/user-not-found") setError("Email tidak terdaftar.");
+      if (err.code === "auth/user-not-found")
+        setError("Email tidak terdaftar.");
       else if (err.code === "auth/wrong-password") setError("Password salah.");
       else setError("Login gagal: " + err.message);
     }

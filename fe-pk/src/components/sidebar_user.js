@@ -3,8 +3,16 @@ import { Link, useLocation } from "react-router-dom";
 import { HeartPulse, LibraryBig, House, ChevronDown } from "lucide-react";
 import LogoutButton from "./logout_button";
 import { auth, db } from "../services/firebaseConfig";
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+
 
 const Sidebar = () => {
   const [showMenu, setShowMenu] = useState(false);
@@ -15,9 +23,18 @@ const Sidebar = () => {
 
   const menuItems = [
     { to: "/user/dashboard", label: "Dashboard", icon: <House /> },
-    { to: "/user/data_materi/index", label: "Data Materi", icon: <LibraryBig /> },
-    { to: "/user/data_penyakit/index", label: "Data Penyakit", icon: <HeartPulse /> },
+    {
+      to: "/user/data_materi/index",
+      label: "Data Materi",
+      icon: <LibraryBig />,
+    },
+    {
+      to: "/user/data_penyakit/index",
+      label: "Data Penyakit",
+      icon: <HeartPulse />,
+    },
     { to: "/user/data_umum/index", label: "Data Umum", icon: <HeartPulse /> },
+    { to: "/user/data_antisipasi/index", label: "Antisipasi", icon: <HeartPulse /> },
   ];
 
   // 🔹 Dengar perubahan user login dan ambil data dari Firestore
@@ -46,7 +63,9 @@ const Sidebar = () => {
           if (!spesifikSnap.empty) {
             const data = spesifikSnap.docs[0].data();
             if (data.foto) {
-              setUserPhoto(typeof data.foto === "object" ? data.foto.url : data.foto);
+              setUserPhoto(
+                typeof data.foto === "object" ? data.foto.url : data.foto
+              );
             }
           }
         } catch (error) {
@@ -95,6 +114,15 @@ const Sidebar = () => {
           }`}
         >
           <LogoutButton />
+          <Link to="/user/profile/user_profil">
+            <button
+              className="bg-white w-full py-3 text-xl rounded-lg text-green-500 
+               hover:bg-gray-200 transition duration-300 ease-in-out 
+               transform hover:scale-105"
+            >
+              Profil
+            </button>
+          </Link>
         </div>
       </div>
 

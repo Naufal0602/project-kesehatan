@@ -11,10 +11,32 @@ export default function AdminDataPenyakit() {
   const [selectedJenis, setSelectedJenis] = useState([]);
   const [search, setSearch] = useState("");
 
-  // 🔹 Ambil data penyakit + user + jenis penyakit
+  // -------------------- PARSE BULAN (dari Firestore Timestamp) --------------------
+  const parseBulanTimestamp = (ts) => {
+    if (!ts || !ts.toDate) {
+      return {
+        raw: null,
+        bulan: "-",
+        month: "-",
+        year: "-",
+      };
+    }
+
+    const d = ts.toDate();
+    const namaBulan = d.toLocaleString("id-ID", { month: "long" });
+
+    return {
+      raw: d,
+      bulan: `${namaBulan} ${d.getFullYear()}`, // contoh: Februari 2025
+      month: d.getMonth() + 1, // angka bulan untuk chart
+      year: d.getFullYear(),
+    };
+  };
+
+  // -------------------- Ambil semua data (jenis, user, penyakit) --------------------
   const fetchData = async () => {
     try {
-      // ambil data jenis penyakit
+      // Ambil data jenis penyakit
       const jenisSnapshot = await getDocs(collection(db, "jenis_penyakit"));
       const jenisMap = {};
       jenisSnapshot.forEach((doc) => {
@@ -26,24 +48,37 @@ export default function AdminDataPenyakit() {
       }));
       setJenisList(jenisOptions);
 
-      // ambil data user
+      // Ambil data user
       const userSnapshot = await getDocs(collection(db, "users"));
       const userMap = {};
       userSnapshot.forEach((doc) => {
         userMap[doc.id] = doc.data().nama || doc.data().email || "-";
       });
 
-      // ambil data penyakit
+      // Ambil data penyakit
       const penyakitSnapshot = await getDocs(collection(db, "data_penyakit"));
       const list = penyakitSnapshot.docs.map((doc) => {
         const d = doc.data();
+
+        const bulanFixed = parseBulanTimestamp(d.bulan);
+
         return {
           id: doc.id,
           ...d,
+
           nama_user: userMap[d.user_id] || "Tidak diketahui",
           nama_jenis_penyakit: jenisMap[d.id_jenis_penyakit] || "-",
+
+          // TAMPILAN UNTUK DATATABLE
+          bulan_tampil: bulanFixed.bulan, // "Februari 2025"
+
+          // RAW UNTUK CHART / SORT
+          bulan_raw: bulanFixed.raw,
+          bulan_month: bulanFixed.month,
+          bulan_year: bulanFixed.year,
         };
       });
+
       setData(list);
     } catch (err) {
       console.error("Gagal mengambil data:", err);
@@ -52,29 +87,33 @@ export default function AdminDataPenyakit() {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 🔹 Filter berdasarkan jenis penyakit & pencarian
+  // -------------------- FILTER (Jenis Penyakit + Pencarian) --------------------
   const filteredData = useMemo(() => {
     return data.filter((item) => {
       const cocokJenis =
         selectedJenis.length === 0 ||
         selectedJenis.some((j) => j.value === item.nama_jenis_penyakit);
+
       const cari = search.toLowerCase();
       const cocokCari =
         item.nama_user?.toLowerCase().includes(cari) ||
         item.nama_penyakit?.toLowerCase().includes(cari);
+
       return cocokJenis && cocokCari;
     });
   }, [data, selectedJenis, search]);
 
+  // -------------------- KOLUMN TABEL --------------------
   const columns = [
     { name: "Nama User", selector: (row) => row.nama_user, sortable: true },
     { name: "Jenis Penyakit", selector: (row) => row.nama_jenis_penyakit },
     { name: "Nama Penyakit", selector: (row) => row.nama_penyakit },
     { name: "Hasil Lab", selector: (row) => row.hasil_lab },
     { name: "Status", selector: (row) => row.status },
-    { name: "Bulan", selector: (row) => row.bulan },
+    { name: "Bulan", selector: (row) => row.bulan_tampil }, // "Februari 2025"
   ];
 
   return (
@@ -118,7 +157,7 @@ export default function AdminDataPenyakit() {
           </div>
         </div>
 
-        {/* DataTable */}
+        {/* TABEL */}
         <div className="bg-white p-4 rounded-xl shadow">
           <DataTable
             columns={columns}

@@ -1,14 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  Layers,
-  Users,
-  ClockFading,
-  HeartPulse,
-  LibraryBig,
   House,
   ChevronDown,
-  ClipboardList
 } from "lucide-react";
 
 import LogoutButton from "./logout_button";
@@ -16,7 +10,7 @@ import { auth, db } from "../services/firebaseConfig";
 import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
-const Sidebar = () => {
+const Sidebar_Super_Admin = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
 
@@ -26,14 +20,8 @@ const Sidebar = () => {
   const location = useLocation();
 
   const menuItems = [
-    { to: "/admin/dashboard", label: "Dashboard", icon: <House /> },
-    { to: "/admin/data_umum/index", label: "Data Umum", icon: <ClipboardList /> },
-    { to: "/admin/data_materi/index", label: "Data Materi", icon: <LibraryBig /> },
-    { to: "/admin/data_penyakit/index", label: "Data Penyakit", icon: <HeartPulse /> },
-    { to: "/admin/data_penyakit/data_antisipasi", label: "Data Antisipasi", icon: <HeartPulse /> },
-    { to: "/admin/tingkatan", label: "Tingkatan", icon: <Layers /> },
-    { to: "/admin/daftar-account", label: "Daftar Akun Pengguna", icon: <Users /> },
-    { to: "/admin/confirm-account", label: "Daftar Akun Tertunda", icon: <ClockFading /> },
+    { to: "/super_admin/dashboard", label: "Dashboard", icon: <House /> },
+    { to: "/super_admin/confirm-admin", label: "Daftar Admin Tertunda", icon: <House /> },
   ];
 
   // 🔥 AMBIL DATA ADMIN DARI FIRESTORE
@@ -99,15 +87,6 @@ const Sidebar = () => {
           }`}
         >
           <LogoutButton />
-          <Link to="/admin/profile/user_profil">
-                      <button
-                        className="bg-white w-full py-3 text-xl rounded-lg text-green-500 
-                         hover:bg-gray-200 transition duration-300 ease-in-out 
-                         transform hover:scale-105"
-                      >
-                        Profil
-                      </button>
-                    </Link>
         </div>
       </div>
 
@@ -205,4 +184,4 @@ const Sidebar = () => {
   );
 };
 
-export default Sidebar;
+export default Sidebar_Super_Admin;
