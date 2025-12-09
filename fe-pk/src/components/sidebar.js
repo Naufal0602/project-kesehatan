@@ -13,7 +13,7 @@ import {
 
 import LogoutButton from "./logout_button";
 import { auth, db } from "../services/firebaseConfig";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, query, collection, where, getDocs } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
 const Sidebar = () => {
@@ -44,16 +44,27 @@ const Sidebar = () => {
           const ref = doc(db, "users", currentUser.uid);
           const snap = await getDoc(ref);
 
-          if (snap.exists()) {
-            const data = snap.data();
+          const q = query(
+            collection(db, "data_spesifik"),
+            where("user_id", "==", currentUser.uid)
+          );
+          const spesifikSnap = await getDocs(q);
 
-            setAdminName(data.nama || "Admin");
-
+          if (!spesifikSnap.empty) {
+            const data = spesifikSnap.docs[0].data();
             if (data.foto) {
               setAdminPhoto(
                 typeof data.foto === "object" ? data.foto.url : data.foto
               );
             }
+          }
+
+          if (snap.exists()) {
+            const data = snap.data();
+
+            setAdminName(data.nama || "Admin");
+
+            
           }
         } catch (err) {
           console.error("Gagal load admin:", err);

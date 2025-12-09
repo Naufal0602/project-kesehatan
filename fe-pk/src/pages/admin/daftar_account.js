@@ -52,7 +52,10 @@ const DaftarAccount = () => {
         };
       });
 
-      setAkunList(akunData);
+      // Filter: hanya role user
+      const filtered = akunData.filter((a) => a.role?.toLowerCase() === "user");
+
+      setAkunList(filtered);
     } catch (err) {
       console.error("❌ Error ambil data akun:", err);
     }
@@ -67,7 +70,11 @@ const DaftarAccount = () => {
     { name: "Nama", selector: (row) => row.nama, sortable: true },
     { name: "Email", selector: (row) => row.email, sortable: true },
     { name: "Lembaga", selector: (row) => row.lembaga || "-", sortable: true },
-    { name: "Tingkatan", selector: (row) => row.nama_tingkatan || "-", sortable: true },
+    {
+      name: "Tingkatan",
+      selector: (row) => row.nama_tingkatan || "-",
+      sortable: true,
+    },
     { name: "Role", selector: (row) => row.role || "-", sortable: true },
     {
       name: "Aksi",
@@ -84,7 +91,7 @@ const DaftarAccount = () => {
           </button>
 
           <button
-            onClick={() => handleDelete(row.id)}
+            onClick={() => handleDelete(row.user_id)}
             className="flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md transition"
           >
             <Trash2 className="w-4 h-4" />
@@ -95,36 +102,63 @@ const DaftarAccount = () => {
   ];
 
   const handleDelete = async (userId) => {
+    console.log("➡️ MULAI DELETE, userId:", userId);
+
     if (!window.confirm("Yakin ingin menghapus data ini?")) return;
     setLoading(true);
 
     try {
+      // Cari object user di akunList
       const userObj =
         akunList.find((a) => a.id === userId || a.user_id === userId) || null;
 
-      if (userObj && userObj.public_id && typeof userObj.public_id === "string") {
-        await fetch("http://localhost:3030/delete", {
+      console.log("🔎 userObj ditemukan:", userObj);
+
+      // Cek apakah ada public_id untuk delete image
+      if (
+        userObj &&
+        userObj.public_id &&
+        typeof userObj.public_id === "string"
+      ) {
+        console.log("🖼 Menghapus gambar dengan public_id:", userObj.public_id);
+
+        const deleteImageRes = await fetch("http://localhost:3030/delete", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ public_id: userObj.public_id }),
         });
+
+        console.log("📡 Respons hapus gambar:", await deleteImageRes.text());
+      } else {
+        console.log("⚠️ Tidak ada public_id, skip hapus gambar.");
       }
 
+      // Hapus dokumen di collection 'users'
+      console.log(`🔥 Menghapus dokumen users/${userId}`);
       await deleteDoc(doc(db, "users", userId));
+      console.log("✔️ Dokumen users berhasil dihapus");
 
+      // Cari data spesifik
       const dataSpesifikSnap = await getDocs(
         query(collection(db, "data_spesifik"), where("user_id", "==", userId))
       );
 
+      console.log("🔎 Data spesifik ditemukan:", dataSpesifikSnap.size);
+
       if (!dataSpesifikSnap.empty) {
         await Promise.all(
-          dataSpesifikSnap.docs.map((d) =>
-            deleteDoc(doc(db, "data_spesifik", d.id))
-          )
+          dataSpesifikSnap.docs.map(async (d) => {
+            console.log("🔥 Menghapus data_spesifik:", d.id);
+            await deleteDoc(doc(db, "data_spesifik", d.id));
+          })
         );
+        console.log("✔️ Semua data_spesifik dihapus");
+      } else {
+        console.log("⚠️ Tidak ada data_spesifik yang cocok, skip.");
       }
 
       alert("✅ Data berhasil dihapus!");
+
       setRefresh((r) => !r);
     } catch (error) {
       console.error("❌ Error menghapus data:", error);

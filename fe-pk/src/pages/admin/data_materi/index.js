@@ -26,6 +26,7 @@ import FullScreenLoader from "../../../components/FullScreenLoader";
 import ConfirmModal from "../../../components/ConfirmModal";
 import Select from "react-select";
 
+
 const initialFormData = {
   id: "",
   peserta_id: "",
@@ -95,6 +96,7 @@ const DataMateriAdmin = () => {
   const [confirmData, setConfirmData] = useState(null);
   const [selectedData, setSelectedData] = useState(null);
   const [formData, setFormData] = useState(initialFormData);
+  const [usersList, setUsersList] = useState([]);
 
   const resetNotifications = useCallback(() => {
     setSuccess(false);
@@ -117,6 +119,17 @@ const DataMateriAdmin = () => {
     }
   }, []);
 
+  const fetchUsers = useCallback(async () => {
+    try {
+      const q = collection(db, "users");
+      const snapshot = await getDocs(q);
+      const list = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setUsersList(list);
+    } catch (err) {
+      console.error("Gagal ambil users:", err);
+    }
+  }, []);
+
   // --- Fetch daftar peserta ---
   const fetchPeserta = useCallback(async () => {
     try {
@@ -132,7 +145,8 @@ const DataMateriAdmin = () => {
   useEffect(() => {
     fetchDataMateri();
     fetchPeserta();
-  }, [fetchDataMateri, fetchPeserta]);
+    fetchUsers();
+  }, [fetchDataMateri, fetchPeserta, fetchUsers]);
 
   // --- ACTIONS ---
   const handleView = useCallback(
@@ -309,6 +323,12 @@ const DataMateriAdmin = () => {
     [handleView, handleEdit, handleDelete, pesertaList]
   );
 
+  const pesertaUserOnly = pesertaList.filter((p) => {
+    const user = usersList.find((u) => u.id === p.id); 
+    return user?.role === "user";
+  });
+  
+
   if (loading) return <FullScreenLoader />;
 
   return (
@@ -372,10 +392,10 @@ const DataMateriAdmin = () => {
                   Pilih Peserta
                 </label>
                 <Select
-                  options={pesertaList.map((p) => ({
-                    value: p.id,
-                    label: p.nama || p.id,
-                  }))}
+                  options={pesertaUserOnly.map((p) => ({
+                      value: p.id,
+                      label: p.nama || p.id,
+                    }))}
                   value={
                     pesertaList.find((p) => p.id === formData.peserta_id)
                       ? {

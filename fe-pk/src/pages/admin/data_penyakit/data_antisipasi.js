@@ -13,6 +13,9 @@ import {
 import { db } from "../../../services/firebaseConfig";
 import ConfirmModal from "../../../components/ConfirmModal";
 import FullScreenLoader from "../../../components/FullScreenLoader";
+import jsPDF from "jspdf";
+import * as XLSX from "xlsx";
+import autoTable from "jspdf-autotable";
 
 const AdminDataPenyakitDetail = () => {
   const [data, setData] = useState([]);
@@ -25,6 +28,10 @@ const AdminDataPenyakitDetail = () => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [loaderStatus, setLoaderStatus] = useState(null);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [format, setFormat] = useState("pdf"); // default PDF
 
   const [newObat, setNewObat] = useState({
     nama_obat: "",
@@ -51,9 +58,6 @@ const AdminDataPenyakitDetail = () => {
         return;
       }
 
-      // -----------------------
-      // Untuk antisipasi (array)
-      // -----------------------
       if (target.type === "antisipasi") {
         const docRef = doc(db, "jenis_penyakit", target.parentId);
 
@@ -216,6 +220,160 @@ const AdminDataPenyakitDetail = () => {
       ),
     },
   ];
+  const printPdfAll = () => {
+    const doc = new jsPDF({
+      orientation: "portrait", // sesuai permintaan
+      unit: "mm",
+      format: "a4",
+    });
+
+    const marginLeft = 14;
+    const marginRight = 14;
+
+    doc.setFontSize(16);
+    doc.text("Data Jenis Penyakit", marginLeft, 15);
+
+    const tableData = data.map((item, i) => {
+      const antisipasiTxt = item.antisipasi?.join(", ") || "-";
+      const obatTxt =
+        item.obatList
+          ?.map((o) => `${o.nama_obat} (${o.jenis}) - ${o.dosis}`)
+          .join("; ") || "-";
+
+      return [i + 1, item.nama_jenis, antisipasiTxt, item.tips || "-", obatTxt];
+    });
+
+    autoTable(doc, {
+      startY: 22,
+      margin: { left: marginLeft, right: marginRight },
+
+      head: [["No", "Nama Jenis", "Antisipasi", "Tips", "Obat"]],
+      body: tableData,
+
+      styles: {
+        fontSize: 10,
+        cellPadding: 2,
+        overflow: "linebreak", // wrap otomatis
+      },
+
+      headStyles: {
+        fillColor: [34, 139, 34],
+        textColor: 255,
+        fontSize: 11,
+      },
+
+      columnStyles: {
+        0: { cellWidth: 10 },
+        1: { cellWidth: 35, overflow: "linebreak" },
+        2: { cellWidth: 40, overflow: "linebreak" },
+        3: { cellWidth: 30, overflow: "linebreak" },
+        4: { cellWidth: "auto", overflow: "linebreak" }, // biar obat wrap rapi
+      },
+    });
+
+    doc.save("data_penyakit.pdf");
+  };
+
+  const printPdfRange = () => {
+    const from = new Date(fromDate);
+    const to = new Date(toDate);
+
+    const filtered = data.filter((item) => {
+      const t = item.created_at?.toDate();
+      return t >= from && t <= to;
+    });
+
+    // Format data untuk PDF table
+    const tableData = filtered.map((item, i) => {
+      const obatFormatted = item.obatList
+        ?.map((o) => `${o.nama_obat} (${o.jenis}) - ${o.dosis}`)
+        .join("; ");
+
+      return [
+        i + 1,
+        item.nama_jenis,
+        item.antisipasi?.join(", ") || "-",
+        item.tips || "-",
+        obatFormatted || "-",
+      ];
+    });
+
+    const doc = new jsPDF("p", "mm", "a4");
+
+    doc.setFontSize(16);
+    doc.text("Data Jenis Penyakit (Filter Tanggal)", 14, 15);
+
+    autoTable(doc, {
+      head: [["No", "Nama Jenis", "Antisipasi", "Tips", "Obat"]],
+      body: tableData,
+      startY: 25,
+      styles: {
+        fontSize: 10,
+        cellPadding: 3,
+      },
+      headStyles: {
+        fillColor: [22, 160, 133], // hijau soft
+        textColor: 255,
+        fontSize: 11,
+      },
+    });
+
+    doc.save("data_penyakit_filter.pdf");
+  };
+
+  const printExcelAll = () => {
+    const cleanData = data.map((item) => {
+      const obatFormatted = item.obatList
+        ?.map((o) => `${o.nama_obat} (${o.jenis}) - ${o.dosis}`)
+        .join("; ");
+
+      return {
+        id: item.id,
+        nama_jenis: item.nama_jenis,
+        antisipasi: item.antisipasi?.join(", "),
+        tips: item.tips || "",
+        obat: obatFormatted || "", // dipakai
+        // obatList tidak dimasukkan
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(cleanData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Data Penyakit");
+
+    XLSX.writeFile(workbook, "data_penyakit.xlsx");
+  };
+
+  const printExcelRange = () => {
+    const from = new Date(fromDate);
+    const to = new Date(toDate);
+
+    const filtered = data.filter((item) => {
+      const t = item.created_at?.toDate();
+      return t >= from && t <= to;
+    });
+
+    const cleanData = filtered.map((item) => {
+      const obatFormatted = item.obatList
+        ?.map((o) => `${o.nama_obat} (${o.jenis}) - ${o.dosis}`)
+        .join("; ");
+
+      return {
+        id: item.id,
+        nama_jenis: item.nama_jenis,
+        antisipasi: item.antisipasi?.join(", "),
+        tips: item.tips || "",
+        obat: obatFormatted || "",
+        // obatList tidak dimasukkan
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(cleanData);
+    const workbook = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Data Penyakit");
+    XLSX.writeFile(workbook, "data_penyakit_filtered.xlsx");
+  };
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -237,6 +395,12 @@ const AdminDataPenyakitDetail = () => {
         <h1 className="text-2xl font-bold text-green-700 mb-6 text-center bg-white p-4 rounded shadow-md">
           Data Jenis Penyakit (Obat, Antisipasi & Tips)
         </h1>
+        <button
+          onClick={() => setShowPrintModal(true)}
+          className="bg-green-600 text-white px-4 py-2 rounded"
+        >
+          Print
+        </button>
 
         <div className="bg-white shadow-md rounded-lg p-4">
           <DataTable
@@ -474,6 +638,79 @@ const AdminDataPenyakitDetail = () => {
                   Tutup
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {showPrintModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg w-[350px] shadow-lg">
+              <h2 className="text-xl font-semibold mb-4">Print Data</h2>
+
+              {/* PILIH FORMAT */}
+              <label className="text-sm font-medium">Format File:</label>
+              <select
+                className="border w-full p-2 rounded mb-4"
+                value={format}
+                onChange={(e) => setFormat(e.target.value)}
+              >
+                <option value="pdf">PDF</option>
+                <option value="xlsx">Excel (.xlsx)</option>
+              </select>
+
+              {/* PRINT SEMUA */}
+              <button
+                className="w-full bg-blue-600 text-white py-2 rounded mb-4"
+                onClick={() => {
+                  if (format === "pdf") printPdfAll();
+                  else printExcelAll();
+                }}
+              >
+                Print Semua
+              </button>
+
+              <hr className="my-4" />
+
+              {/* PRINT SEBAGIAN */}
+              <div>
+                <p className="font-medium mb-2">Print berdasarkan tanggal</p>
+
+                <label className="text-sm">Dari tanggal:</label>
+                <input
+                  type="date"
+                  className="border w-full p-2 rounded mb-3"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                />
+
+                <label className="text-sm">Sampai tanggal:</label>
+                <input
+                  type="date"
+                  className="border w-full p-2 rounded mb-4"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                />
+
+                <button
+                  className="w-full bg-purple-600 text-white py-2 rounded"
+                  onClick={() => {
+                    if (!fromDate || !toDate)
+                      return alert("Tanggal belum lengkap");
+
+                    if (format === "pdf") printPdfRange();
+                    else printExcelRange();
+                  }}
+                >
+                  Print Berdasarkan Tanggal
+                </button>
+              </div>
+
+              <button
+                className="mt-5 w-full bg-gray-300 py-2 rounded"
+                onClick={() => setShowPrintModal(false)}
+              >
+                Tutup
+              </button>
             </div>
           </div>
         )}

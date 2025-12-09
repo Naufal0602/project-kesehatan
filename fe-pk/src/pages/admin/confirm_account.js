@@ -9,28 +9,49 @@ import {
   serverTimestamp,
   getDoc,
 } from "firebase/firestore";
-import { auth, db } from "../../services/firebaseConfig";
+import { db } from "../../services/firebaseConfig";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { CheckCircle, XCircle, Loader2, Eye, X } from "lucide-react";
+import emailjs from "@emailjs/browser";
+import FullScreenLoader from "../../components/FullScreenLoader";
+import { secondaryAuth } from "../../services/firebaseConfig";
 
 const ConfirmAccount = () => {
   const [pendingUsers, setPendingUsers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [refresh, setRefresh] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [loader, setLoader] = useState({
+    visible: false,
+    status: "loading",
+    message: "",
+  });
 
-  // 🔹 Ambil data pending_users
+  const showLoader = (status, message) => {
+    setLoader({
+      visible: true,
+      status: status,
+      message: message,
+    });
+  };
+
+  // 🔹 Ambil data pending_users + DEBUG
   useEffect(() => {
     const fetchPendingUsers = async () => {
       setLoading(true);
       try {
         const querySnapshot = await getDocs(collection(db, "pending_users"));
+        console.log(
+          "DEBUG: raw pending_users:",
+          querySnapshot.docs.map((d) => d.data())
+        );
+
         const users = await Promise.all(
           querySnapshot.docs.map(async (docSnap) => {
             const data = docSnap.data();
 
-            // Ambil nama_tingkatan dari koleksi tingkatan
+            console.log("DEBUG: Data user ditemukan:", data);
+
             let nama_tingkatan = "-";
             if (data.id_tingkatan) {
               const tingkatanDoc = await getDoc(
@@ -49,6 +70,7 @@ const ConfirmAccount = () => {
           })
         );
 
+        console.log("DEBUG: pendingUsers setelah diproses:", users);
         setPendingUsers(users);
       } catch (err) {
         console.error("Gagal mengambil data pending_users:", err);
@@ -58,18 +80,33 @@ const ConfirmAccount = () => {
     };
 
     fetchPendingUsers();
-  }, [refresh]);
+  }, []);
+
+  // 👁️ Lihat detail
+  const handleView = (user) => {
+    console.log("DEBUG: Klik lihat detail. User =", user);
+    setSelectedUser(user);
+    setShowModal(true);
+  };
 
   // ✅ Fungsi Terima
   const handleAccept = async (user) => {
+    console.log("DEBUG: handleAccept dijalankan. User =", user);
+
     if (!window.confirm(`Terima akun ${user.nama}?`)) return;
-    setLoading(true);
+
+    showLoader("loading", "Memproses penerimaan akun...");
+
     try {
       const userCredential = await createUserWithEmailAndPassword(
-        auth,
+        secondaryAuth,
         user.email,
         user.password
       );
+      
+
+      console.log("DEBUG: Firebase Auth created:", userCredential.user);
+
       const createdUser = userCredential.user;
 
       await setDoc(doc(db, "users", createdUser.uid), {
@@ -80,43 +117,48 @@ const ConfirmAccount = () => {
         created_at: serverTimestamp(),
       });
 
+      const { password, ...userWithoutPassword } = user;
+
       await setDoc(doc(db, "data_spesifik", createdUser.uid), {
+        ...userWithoutPassword,
         user_id: createdUser.uid,
-        nrp: user.nrp,
-        nama: user.nama,
-        jenis_kelamin: user.jenis_kelamin,
-        ttl: user.ttl,
-        lspsn: user.lspsn,
-        cabang: user.cabang,
-        kta: user.kta,
-        id_tingkatan: user.id_tingkatan,
-        foto: user.foto || "",
-        public_id: user.public_id || "",
-        resource_type: user.resource_type || "raw",
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
       });
 
       await deleteDoc(doc(db, "pending_users", user.id));
 
-      alert("✅ Akun berhasil diterima dan dibuat di Auth + Firestore!");
+      console.log("DEBUG: User berhasil dihapus dari pending_users");
+
+      setPendingUsers((prev) => prev.filter((u) => u.id !== user.id));
       setShowModal(false);
-      setRefresh(!refresh);
+      setSelectedUser(null);
+
+      console.log("DEBUG: Mengirim email diterima...");
+      await sendEmail(
+        user.email,
+        user.nama,
+        "Akun Anda telah diterima. Silakan login.",
+        true
+      );
+
+      showLoader("success");
     } catch (error) {
-      console.error("Error saat menerima akun:", error);
-      alert("❌ Terjadi kesalahan saat memproses akun. Coba cek console.");
-    } finally {
-      setLoading(false);
+      console.error("ERROR saat menerima akun:", error);
+      showLoader("error", "Terjadi kesalahan saat memproses.");
     }
   };
 
   // ❌ Fungsi Tolak
   const handleReject = async (user) => {
+    console.log("DEBUG: handleReject dijalankan. User =", user);
+
     if (!window.confirm(`Tolak akun ${user.nama}?`)) return;
-    setLoading(true);
+
+    showLoader("loading", "Memproses penolakan akun...");
 
     try {
-      const response = await fetch("http://localhost:3030/delete", {
+      await fetch("http://localhost:3030/delete", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -125,37 +167,65 @@ const ConfirmAccount = () => {
         }),
       });
 
-      const result = await response.json();
-
-      if (!response.ok || result.error) {
-        console.error("❌ Gagal hapus foto di Cloudinary:", result);
-        alert(
-          "Gagal menghapus foto di Cloudinary. Data belum dihapus dari Firestore."
-        );
-        return;
-      }
+      console.log("DEBUG: Cloudinary delete response OK");
 
       await deleteDoc(doc(db, "pending_users", user.id));
+      console.log("DEBUG: User dihapus dari pending_users");
 
-      alert("❌ Akun berhasil ditolak dan foto di Cloudinary dihapus!");
+      setPendingUsers((prev) => prev.filter((u) => u.id !== user.id));
       setShowModal(false);
-      setRefresh(!refresh);
-    } catch (error) {
-      console.error("Error saat menolak akun:", error);
-      alert("Terjadi kesalahan saat menolak akun.");
-    } finally {
-      setLoading(false);
+      setSelectedUser(null);
+
+      console.log("DEBUG: Mengirim email penolakan...");
+      await sendEmail(
+        user.email,
+        user.nama,
+        "Maaf, pendaftaran Anda ditolak.",
+        false
+      );
+
+      showLoader("success");
+    } catch (err) {
+      console.error("Gagal menolak akun:", err);
+      showLoader("error", "Gagal menolak akun.");
     }
   };
 
-  // 👁️ Fungsi Lihat Detail
-  const handleView = (user) => {
-    setSelectedUser(user);
-    setShowModal(true);
+  // 📧 Fungsi kirim email + DEBUG
+  const sendEmail = (toEmail, toName, message, accepted = false) => {
+    console.log("DEBUG: Mengirim Email:", {
+      toEmail,
+      toName,
+      message,
+      accepted,
+    });
+
+    return emailjs.send(
+      "service_dip11ah",
+      "template_57sbswo",
+      {
+        to_email: toEmail,
+        to_name: toName,
+        title: accepted ? "Akun Anda Telah Diterima" : "Akun Anda Ditolak",
+        message: message,
+        accepted: accepted,
+        year: new Date().getFullYear(),
+
+        // ⬇️ Trik untuk menggantikan {{#if}}
+        login_button: accepted
+          ? `<a href="project-kesehatan-56b4b.web.app/login" class="button">Login Sekarang</a>`
+          : "",
+      },
+      "koKUzXhOxQy0j5CBc"
+    );
   };
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-50">
+      {loader.visible && (
+        <FullScreenLoader status={loader.status} message={loader.message} />
+      )}
+
       {/* Sidebar */}
       <div className="md:block fixed top-0 left-0">
         <Sidebar />
