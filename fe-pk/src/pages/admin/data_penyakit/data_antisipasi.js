@@ -16,7 +16,7 @@ import FullScreenLoader from "../../../components/FullScreenLoader";
 import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
 import autoTable from "jspdf-autotable";
-
+import { Info, Pencil, X,Trash2 } from "lucide-react";
 const AdminDataPenyakitDetail = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -202,19 +202,26 @@ const AdminDataPenyakitDetail = () => {
               setSelectedData(row);
               setShowInfoModal(true);
             }}
-            className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+            className="bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700
+                       flex items-center justify-center"
           >
-            Info
+            <span className="block md:hidden">
+              <Info size={14} />
+            </span>
+            <span className="hidden md:block">Info</span>
           </button>
+
           <button
             onClick={() => {
               setSelectedData(row);
               setShowEditModal(true);
               setNewTips(row.tips || "");
             }}
-            className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+            className="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700
+                       flex items-center justify-center"
           >
-            + Tambah
+            <span className="block md:hidden">＋</span>
+            <span className="hidden md:block">+ Tambah</span>
           </button>
         </div>
       ),
@@ -328,7 +335,6 @@ const AdminDataPenyakitDetail = () => {
         .join("; ");
 
       return {
-        id: item.id,
         nama_jenis: item.nama_jenis,
         antisipasi: item.antisipasi?.join(", "),
         tips: item.tips || "",
@@ -359,7 +365,6 @@ const AdminDataPenyakitDetail = () => {
         .join("; ");
 
       return {
-        id: item.id,
         nama_jenis: item.nama_jenis,
         antisipasi: item.antisipasi?.join(", "),
         tips: item.tips || "",
@@ -395,12 +400,14 @@ const AdminDataPenyakitDetail = () => {
         <h1 className="text-2xl font-bold text-green-700 mb-6 text-center bg-white p-4 rounded shadow-md">
           Data Jenis Penyakit (Obat, Antisipasi & Tips)
         </h1>
-        <button
-          onClick={() => setShowPrintModal(true)}
-          className="bg-green-600 text-white px-4 py-2 rounded"
-        >
-          Print
-        </button>
+        <div className="flex mb-4 w-full justify-end justify-items-end">
+          <button
+            onClick={() => setShowPrintModal(true)}
+            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+          >
+            Print
+          </button>
+        </div>
 
         <div className="bg-white shadow-md rounded-lg p-4">
           <DataTable
@@ -414,129 +421,170 @@ const AdminDataPenyakitDetail = () => {
 
         {/* Modal INFO */}
         {showInfoModal && selectedData && (
-          <div className="fixed inset-0 flex items-center justify-center bg-gray-100 bg-opacity-40 z-50">
-            <div className="bg-gray-50 rounded-lg shadow-lg w-[600px] p-6 max-h-[90vh] overflow-y-auto">
-              <h2 className="text-xl font-bold mb-3 text-green-700">
-                Info Jenis Penyakit
-              </h2>
+          <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-2">
+            <div
+              className="bg-gray-50 rounded-xl shadow-lg 
+                w-full sm:w-[600px] 
+                max-h-[90vh] 
+                p-4 sm:p-6 
+                overflow-y-auto"
+            >
+              {/* ===== HEADER ===== */}
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg sm:text-xl font-bold text-green-700">
+                  Info Jenis Penyakit
+                </h2>
+                <button
+                  onClick={() => setShowInfoModal(false)}
+                  className="text-gray-500 hover:text-red-600"
+                >
+                  <X size={22} />
+                </button>
+              </div>
 
-              <p className="font-semibold mb-4">
+              <p className="font-semibold mb-4 text-sm sm:text-base">
                 Nama: {selectedData.nama_jenis}
               </p>
 
-              {/* ================= TABEL ANTISIPASI ================= */}
-              <h3 className="font-semibold text-lg">Antisipasi</h3>
-              <table className="w-full mt-2 border">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="border p-2 text-left">Isi</th>
-                    <th className="border p-2">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedData.antisipasi?.length ? (
-                    selectedData.antisipasi.map((a, i) => (
-                      <tr key={i}>
-                        <td className="border p-2">{a}</td>
-                        <td className="border p-2 text-center">
-                          <button
-                            onClick={() =>
-                              (window.location.href = `/admin/data_penyakit/edit_antisipasi/${selectedData.id}/${i}`)
-                            }
-                            className="bg-blue-500 text-white px-2 py-1 rounded mr-2"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => {
-                              setDeleteTarget({
-                                type: "antisipasi",
-                                parentId: selectedData.id,
-                                index: i,
-                              });
-                              setShowConfirm(true);
-                            }}
-                            className="bg-red-500 text-white px-2 py-1 rounded"
-                          >
-                            Hapus
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan="2"
-                        className="text-center p-2 italic text-gray-500"
-                      >
-                        Belum ada antisipasi
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-              {/* ================= TABEL OBAT ================= */}
-              <h3 className="font-semibold text-lg mt-8">Obat</h3>
-              <table className="w-full mt-2 border">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="border p-2">Nama Obat</th>
-                    <th className="border p-2">Jenis</th>
-                    <th className="border p-2">Dosis</th>
-                    <th className="border p-2">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedData.obatList?.length ? (
-                    selectedData.obatList.map((o, i) => (
-                      <tr key={i}>
-                        <td className="border p-2">{o.nama_obat}</td>
-                        <td className="border p-2">{o.jenis}</td>
-                        <td className="border p-2">{o.dosis}</td>
-                        <td className="border p-2 text-center">
-                          <button
-                            onClick={() =>
-                              (window.location.href = `/admin/data_penyakit/edit_antisipasi_obat/${
-                                selectedData.id
-                              }/${o.id || i}`)
-                            }
-                            className="bg-blue-500 text-white px-2 py-1 rounded mr-2"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => {
-                              setDeleteTarget({
-                                type: "obat",
-                                parentId: selectedData.id,
-                                obatId: o.id,
-                              });
-                              setShowConfirm(true);
-                            }}
-                            className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                          >
-                            Hapus
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan="4"
-                        className="text-center p-2 italic text-gray-500"
-                      >
-                        Belum ada obat
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+              {/* ================= ANTISIPASI ================= */}
+              <h3 className="font-semibold text-base sm:text-lg">Antisipasi</h3>
 
+              <div className="overflow-x-auto mt-2">
+                <table className="w-full min-w-[500px] border text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="border p-2 text-left">Isi</th>
+                      <th className="border p-2 text-center w-[120px]">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedData.antisipasi?.length ? (
+                      selectedData.antisipasi.map((a, i) => (
+                        <tr key={i}>
+                          <td className="border p-2">{a}</td>
+                          <td className="border p-2">
+                            <div className="flex gap-2 justify-center sm:justify-start">
+                              {/* EDIT */}
+                              <button
+                                title="Edit"
+                                onClick={() =>
+                                  (window.location.href = `/admin/data_penyakit/edit_antisipasi/${selectedData.id}/${i}`)
+                                }
+                                className="bg-blue-500 text-white p-2 rounded flex items-center gap-1 hover:bg-blue-600"
+                              >
+                                <Pencil size={16} />
+                                <span className="hidden sm:inline">Edit</span>
+                              </button>
+
+                              {/* HAPUS */}
+                              <button
+                                title="Hapus"
+                                onClick={() => {
+                                  setDeleteTarget({
+                                    type: "antisipasi",
+                                    parentId: selectedData.id,
+                                    index: i,
+                                  });
+                                  setShowConfirm(true);
+                                }}
+                                className="bg-red-500 text-white p-2 rounded flex items-center gap-1 hover:bg-red-600"
+                              >
+                                <Trash2 size={16} />
+                                <span className="hidden sm:inline">Hapus</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td
+                          colSpan="2"
+                          className="text-center p-3 italic text-gray-500"
+                        >
+                          Belum ada antisipasi
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* ================= OBAT ================= */}
+              <h3 className="font-semibold text-base sm:text-lg mt-8">Obat</h3>
+
+              <div className="overflow-x-auto mt-2">
+                <table className="w-full min-w-[700px] border text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="border p-2">Nama Obat</th>
+                      <th className="border p-2">Jenis</th>
+                      <th className="border p-2">Dosis</th>
+                      <th className="border p-2 text-center w-[120px]">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedData.obatList?.length ? (
+                      selectedData.obatList.map((o, i) => (
+                        <tr key={i}>
+                          <td className="border p-2">{o.nama_obat}</td>
+                          <td className="border p-2">{o.jenis}</td>
+                          <td className="border p-2">{o.dosis}</td>
+                          <td className="border p-2">
+                            <div className="flex gap-2 justify-center sm:justify-start">
+                              {/* EDIT */}
+                              <button
+                                title="Edit"
+                                onClick={() =>
+                                  (window.location.href = `/admin/data_penyakit/edit_antisipasi_obat/${
+                                    selectedData.id
+                                  }/${o.id || i}`)
+                                }
+                                className="bg-blue-500 text-white p-2 rounded flex items-center gap-1 hover:bg-blue-600"
+                              >
+                                <Pencil size={16} />
+                                <span className="hidden sm:inline">Edit</span>
+                              </button>
+
+                              {/* HAPUS */}
+                              <button
+                                title="Hapus"
+                                onClick={() => {
+                                  setDeleteTarget({
+                                    type: "obat",
+                                    parentId: selectedData.id,
+                                    obatId: o.id,
+                                  });
+                                  setShowConfirm(true);
+                                }}
+                                className="bg-red-600 text-white p-2 rounded flex items-center gap-1 hover:bg-red-700"
+                              >
+                                <Trash2 size={16} />
+                                <span className="hidden sm:inline">Hapus</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td
+                          colSpan="4"
+                          className="text-center p-3 italic text-gray-500"
+                        >
+                          Belum ada obat
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* ===== FOOTER ===== */}
               <div className="flex justify-end mt-6">
                 <button
                   onClick={() => setShowInfoModal(false)}
-                  className="bg-gray-500 text-white px-4 py-2 rounded"
+                  className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
                 >
                   Tutup
                 </button>

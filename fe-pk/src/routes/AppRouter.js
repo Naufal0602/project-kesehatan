@@ -6,6 +6,7 @@ import Login from "../pages/auth/login";
 
 import SuperAdminDashboard from "../pages/super_admin/dashboard";
 import SuperAdminConfirmAdmin from "../pages/super_admin/confirm_admin";
+import SuperAdminListAkun from "../pages/super_admin/daftar_akun";
 
 import AdminDashboard from "../pages/admin/dashboard";
 import Tingkatan from "../pages/admin/tingkatan";
@@ -54,6 +55,7 @@ function App() {
         <Route element={<ProtectedRouteByRole allowedRole="super_admin" />}>
           <Route path="/super_admin/dashboard" element={<SuperAdminDashboard />} />
           <Route path="/super_admin/confirm-admin" element={<SuperAdminConfirmAdmin />} />
+          <Route path="/super_admin/daftar_akun" element={<SuperAdminListAkun />} />
         </Route>
 
         {/* halaman admin, hanya bisa diakses role: 'admin' */}

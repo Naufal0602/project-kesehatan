@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   House,
   ChevronDown,
+  ClockFading
 } from "lucide-react";
 
 import LogoutButton from "./logout_button";
@@ -21,7 +22,9 @@ const Sidebar_Super_Admin = () => {
 
   const menuItems = [
     { to: "/super_admin/dashboard", label: "Dashboard", icon: <House /> },
-    { to: "/super_admin/confirm-admin", label: "Daftar Admin Tertunda", icon: <House /> },
+    { to: "/super_admin/confirm-admin", label: "Daftar Admin Tertunda", icon: <ClockFading /> },
+    { to: "/super_admin/daftar_akun", label: "Daftar Akun", icon: <ClockFading /> },
+    
   ];
 
   // 🔥 AMBIL DATA ADMIN DARI FIRESTORE

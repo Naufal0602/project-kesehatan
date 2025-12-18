@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
-import Sidebar from "../../../components/sidebar"; // ganti ke SidebarAdmin jika perlu
+import Sidebar from "../../../components/sidebar"; 
 import {
   collection,
   addDoc,
@@ -330,6 +330,7 @@ const DataMateriAdmin = () => {
   
 
   if (loading) return <FullScreenLoader />;
+
 
   return (
     <div className="flex min-h-screen bg-gray-100">

@@ -210,14 +210,14 @@ export default function EditProfile() {
               onClick={handleSave}
               className="px-10 py-3 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700"
             >
-              SAVE
+              Simpan
             </button>
 
             <button
               onClick={() => navigate(-1)}
               className="px-10 py-3 border rounded-lg text-gray-700 hover:bg-gray-100"
             >
-              CANCEL
+              Batal
             </button>
           </div>
         </div>

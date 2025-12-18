@@ -118,18 +118,18 @@ export default function AdminDataPenyakit() {
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-      <div className="fixed top-0 left-0">
+      <div className="fixed top-0 left-0 z-50">
         <Sidebar />
       </div>
 
-      <div className="lg:ml-64 mt-16 p-6 w-full">
+      <div className="lg:ml-64 mt-16 p-4 md:p-6 w-full overflow-x-hidden">
         <h1 className="text-2xl font-bold text-green-600 mb-6">
           Data Penyakit Semua User
         </h1>
 
         {/* Filter Section */}
-        <div className="bg-white p-4 rounded-xl shadow mb-6">
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bg-white w-full p-4 rounded-xl shadow mb-6 lg:justify-between">
+          <div className="grid w-full md:grid-cols-2 lg:grid-cols-3 gap-4 lg:justify-between">
             <div>
               <label className="font-medium block mb-1 text-gray-600">
                 Filter Jenis Penyakit

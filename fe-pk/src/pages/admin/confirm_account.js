@@ -117,8 +117,7 @@ const ConfirmAccount = () => {
         created_at: serverTimestamp(),
       });
 
-      const { password, ...userWithoutPassword } = user;
-
+     const { password, id, status, ...userWithoutPassword } = user;
       await setDoc(doc(db, "data_spesifik", createdUser.uid), {
         ...userWithoutPassword,
         user_id: createdUser.uid,

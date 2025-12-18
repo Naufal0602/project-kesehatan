@@ -35,7 +35,12 @@ const UserDashboard = () => {
       const materiSnap = await getDocs(materiQ);
       setMateriCount(materiSnap.size);
 
-      const penyakitSnap = await getDocs(collection(db, "data_penyakit"));
+      const penyakitQ = query(
+        collection(db, "data_penyakit"),
+        where("user_id", "==", currentUser.uid)
+      );
+
+      const penyakitSnap = await getDocs(penyakitQ);
       setPenyakitCount(penyakitSnap.size);
 
       const jenisSnap = await getDocs(collection(db, "jenis_penyakit"));
