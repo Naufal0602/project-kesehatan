@@ -15,6 +15,7 @@ import FullScreenLoader from "../../../components/FullScreenLoader";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+
 const DetailModal = ({ data, onClose }) => {
   const fields = [
     { label: "Tanggal Pengujian", key: "tanggal_pengujian" },
@@ -287,13 +288,37 @@ const DataMateriUser = () => {
         // Nama file
         const fileDate = today.toISOString().slice(0, 19).replace(/:/g, "-");
 
-        docPdf.save(`hasil_tes_${userName}_${fileDate}.pdf`);
+       savePDFUniversal(docPdf, `hasil_tes_${userName}_${fileDate}.pdf`);
       } finally {
         setPrinting(false);
       }
     },
     [user]
   );
+
+const savePDFUniversal = (docPdf, fileName) => {
+  const pdfBlob = docPdf.output("blob");
+
+  // Jika Android WebView
+  if (typeof window !== "undefined" && window.AndroidInterface && window.AndroidInterface.savePDF) {
+    const base64 = btoa(
+      new Uint8Array(docPdf.output("arraybuffer"))
+        .reduce((data, byte) => data + String.fromCharCode(byte), "")
+    );
+    window.AndroidInterface.savePDF(base64, fileName);
+    return;
+  }
+
+  // Jika browser biasa
+  const url = URL.createObjectURL(pdfBlob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+
 
   // handler print all / print range
   const handlePrintAll = useCallback(async () => {
