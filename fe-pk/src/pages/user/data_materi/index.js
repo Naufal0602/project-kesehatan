@@ -297,20 +297,31 @@ const DataMateriUser = () => {
   );
 
 const savePDFUniversal = (docPdf, fileName) => {
-  const pdfBlob = docPdf.output("blob");
+  const arrayBuffer = docPdf.output("arraybuffer");
 
   // Jika Android WebView
-  if (typeof window !== "undefined" && window.AndroidInterface && window.AndroidInterface.savePDF) {
-    const base64 = btoa(
-      new Uint8Array(docPdf.output("arraybuffer"))
-        .reduce((data, byte) => data + String.fromCharCode(byte), "")
-    );
+  if (window.AndroidInterface && window.AndroidInterface.savePDF) {
+    const uint8Array = new Uint8Array(arrayBuffer);
+
+    let binary = "";
+    const len = uint8Array.byteLength;
+
+    // Ubah byte → binary string aman
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(uint8Array[i]);
+    }
+
+    // encode aman
+    const base64 = window.btoa(binary);
+
+    // kirim ke Android
     window.AndroidInterface.savePDF(base64, fileName);
     return;
   }
 
-  // Jika browser biasa
-  const url = URL.createObjectURL(pdfBlob);
+  // Jika bukan Android → download biasa
+  const blob = new Blob([arrayBuffer], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = fileName;
@@ -319,8 +330,6 @@ const savePDFUniversal = (docPdf, fileName) => {
 };
 
 
-
-  // handler print all / print range
   const handlePrintAll = useCallback(async () => {
     setShowPrintModal(false);
     await generatePDF(dataMateri);
