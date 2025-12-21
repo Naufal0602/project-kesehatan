@@ -103,7 +103,6 @@ const ConfirmAccount = () => {
         user.email,
         user.password
       );
-      
 
       console.log("DEBUG: Firebase Auth created:", userCredential.user);
 
@@ -117,7 +116,7 @@ const ConfirmAccount = () => {
         created_at: serverTimestamp(),
       });
 
-     const { password, id, status, ...userWithoutPassword } = user;
+      const { password, id, status, ...userWithoutPassword } = user;
       await setDoc(doc(db, "data_spesifik", createdUser.uid), {
         ...userWithoutPassword,
         user_id: createdUser.uid,
@@ -156,7 +155,7 @@ const ConfirmAccount = () => {
     showLoader("loading", "Memproses penolakan akun...");
 
     try {
-      await fetch("https://project-kesehatan.vercel.app/api/delete", {
+      await fetch("https://project-kesehatan.vercel.app/delete", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
