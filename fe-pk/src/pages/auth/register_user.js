@@ -84,10 +84,13 @@ const RegisterPendingStyled = () => {
         const formDataUpload = new FormData();
         formDataUpload.append("file", fotoFile);
 
-        const res = await fetch("http://localhost:3030/upload", {
-          method: "POST",
-          body: formDataUpload,
-        });
+        const res = await fetch(
+          "https://project-kesehatan.vercel.app/api/upload",
+          {
+            method: "POST",
+            body: formDataUpload,
+          }
+        );
 
         const data = await res.json();
 
@@ -99,13 +102,13 @@ const RegisterPendingStyled = () => {
         publicId = data.public_id;
         formData.resource_type = data.resource_type || "raw";
       }
- 
+
       // 🟢 Simpan data ke Firestore
       await addDoc(collection(db, "pending_users"), {
         ...formData,
         foto: uploadedUrl,
         public_id: publicId,
-        resource_type: formData.resource_type, 
+        resource_type: formData.resource_type,
         status: "pending",
         created_at: serverTimestamp(),
       });

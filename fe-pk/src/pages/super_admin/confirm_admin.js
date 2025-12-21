@@ -116,14 +116,17 @@ const ConfirmAccount = () => {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:3030/delete", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          public_id: user.public_id,
-          resource_type: user.resource_type,
-        }),
-      });
+      const response = await fetch(
+        "https://project-kesehatan.vercel.app/api/delete",
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            public_id: user.public_id,
+            resource_type: user.resource_type,
+          }),
+        }
+      );
 
       const result = await response.json();
 

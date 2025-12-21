@@ -122,11 +122,14 @@ const DaftarAccount = () => {
       ) {
         console.log("🖼 Menghapus gambar dengan public_id:", userObj.public_id);
 
-        const deleteImageRes = await fetch("http://localhost:3030/delete", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ public_id: userObj.public_id }),
-        });
+        const deleteImageRes = await fetch(
+          "https://project-kesehatan.vercel.app/api/delete",
+          {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ public_id: userObj.public_id }),
+          }
+        );
 
         console.log("📡 Respons hapus gambar:", await deleteImageRes.text());
       } else {

@@ -82,14 +82,17 @@ const DataUmumAdmin = () => {
           );
 
           try {
-            const res = await fetch("http://localhost:3030/delete", {
-              method: "DELETE",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                public_id: file.public_id,
-                resource_type: file.resource_type, // kirim juga resource_type!
-              }),
-            });
+            const res = await fetch(
+              "https://project-kesehatan.vercel.app/api/delete",
+              {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  public_id: file.public_id,
+                  resource_type: file.resource_type, // kirim juga resource_type!
+                }),
+              }
+            );
 
             const result = await res.json();
             console.log("🌐 Respon server delete:", result);
@@ -169,7 +172,7 @@ const DataUmumAdmin = () => {
     const form = new FormData();
     form.append("file", file);
 
-    const res = await fetch("http://localhost:3030/upload", {
+    const res = await fetch("https://project-kesehatan.vercel.app/api/upload", {
       method: "POST",
       body: form,
     });
@@ -288,14 +291,17 @@ const DataUmumAdmin = () => {
           await Promise.all(
             item.files.map(async (f) => {
               if (f.public_id) {
-                const response = await fetch("http://localhost:3030/delete", {
-                  method: "DELETE",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    public_id: f.public_id,
-                    resource_type: f.resource_type || "auto",
-                  }),
-                });
+                const response = await fetch(
+                  "https://project-kesehatan.vercel.app/api/delete",
+                  {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      public_id: f.public_id,
+                      resource_type: f.resource_type || "auto",
+                    }),
+                  }
+                );
 
                 // Cek hasil dari backend apakah berhasil
                 const result = await response.json();
@@ -329,9 +335,6 @@ const DataUmumAdmin = () => {
     setShowInfoModal(true);
   };
 
-  // -------------------------
-  // Filter simple
-  // -------------------------
   const filteredItems = useMemo(() => {
     return dataList.filter(
       (item) =>

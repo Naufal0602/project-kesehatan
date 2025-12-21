@@ -33,7 +33,7 @@ export default function EditProfile() {
   // 🔹 DELETE Cloudinary
   // =======================
   const deleteFromBackend = async (public_id, resource_type) => {
-    await fetch("http://localhost:3030/delete", {
+    await fetch("https://project-kesehatan.vercel.app/api/delete", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ public_id, resource_type }),
@@ -44,7 +44,7 @@ export default function EditProfile() {
     const data = new FormData();
     data.append("file", file);
 
-    const res = await fetch("http://localhost:3030/upload", {
+    const res = await fetch("https://project-kesehatan.vercel.app/api/upload", {
       method: "POST",
       body: data,
     });

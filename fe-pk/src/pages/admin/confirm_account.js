@@ -148,7 +148,6 @@ const ConfirmAccount = () => {
     }
   };
 
-  // ❌ Fungsi Tolak
   const handleReject = async (user) => {
     console.log("DEBUG: handleReject dijalankan. User =", user);
 
@@ -157,12 +156,12 @@ const ConfirmAccount = () => {
     showLoader("loading", "Memproses penolakan akun...");
 
     try {
-      await fetch("http://localhost:3030/delete", {
+      await fetch("https://project-kesehatan.vercel.app/api/delete", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           public_id: user.public_id,
-          resource_type: user.resource_type,
+          resource_type: user.resource_type || "auto",
         }),
       });
 
