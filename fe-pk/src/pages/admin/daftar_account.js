@@ -123,7 +123,7 @@ const DaftarAccount = () => {
         console.log("🖼 Menghapus gambar dengan public_id:", userObj.public_id);
 
         const deleteImageRes = await fetch(
-          "https://project-kesehatan.vercel.app/delete",
+          "https://project-kesehatan.vercel.app/api/delete",
           {
             method: "DELETE",
             headers: { "Content-Type": "application/json" },

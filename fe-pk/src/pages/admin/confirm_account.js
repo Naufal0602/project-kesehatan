@@ -155,7 +155,7 @@ const ConfirmAccount = () => {
     showLoader("loading", "Memproses penolakan akun...");
 
     try {
-      await fetch("https://project-kesehatan.vercel.app/delete", {
+      await fetch("https://project-kesehatan.vercel.app/api/delete", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

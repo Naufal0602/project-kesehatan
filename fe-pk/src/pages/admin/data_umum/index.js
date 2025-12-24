@@ -83,7 +83,7 @@ const DataUmumAdmin = () => {
 
           try {
             const res = await fetch(
-              "https://project-kesehatan.vercel.app/delete",
+              "https://project-kesehatan.vercel.app/api/delete",
               {
                 method: "DELETE",
                 headers: { "Content-Type": "application/json" },
@@ -292,7 +292,7 @@ const DataUmumAdmin = () => {
             item.files.map(async (f) => {
               if (f.public_id) {
                 const response = await fetch(
-                  "https://project-kesehatan.vercel.app/delete",
+                  "https://project-kesehatan.vercel.app/api/delete",
                   {
                     method: "DELETE",
                     headers: { "Content-Type": "application/json" },
