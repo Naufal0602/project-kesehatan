@@ -33,7 +33,7 @@ export default function EditProfile() {
   // 🔹 DELETE Cloudinary
   // =======================
   const deleteFromBackend = async (public_id, resource_type) => {
-    await fetch("https://project-kesehatan.vercel.app/api/delete", {
+    await fetch("https://project-kesehatan.vercel.app/delete", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ public_id, resource_type }),

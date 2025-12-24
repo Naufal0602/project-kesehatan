@@ -117,7 +117,7 @@ const ConfirmAccount = () => {
 
     try {
       const response = await fetch(
-        "https://project-kesehatan.vercel.app/api/delete",
+        "https://project-kesehatan.vercel.app/delete",
         {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
