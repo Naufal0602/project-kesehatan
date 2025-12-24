@@ -1,42 +1,51 @@
-import multer from "multer";
-import cloudinary from "./cloudinary";
-
-const upload = multer({ storage: multer.memoryStorage() });
-
 export const config = {
   api: {
-    bodyParser: false, // WAJIB untuk multipart/form-data
+    bodyParser: false,
   },
 };
 
-export default function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ message: "Method Not Allowed" });
+export default async function handler(req, res) {
+  // ===== CORS HEADERS =====
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  // Handle preflight
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
   }
 
-  upload.single("file")(req, res, (err) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method Not Allowed" });
+  }
+
+  try {
+    const formData = await req.formData();
+    const file = formData.get("file");
+
+    if (!file) {
+      return res.status(400).json({ error: "File tidak ditemukan" });
     }
 
-    if (!req.file) {
-      return res.status(400).json({ error: "File tidak ada" });
-    }
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET;
 
-    const stream = cloudinary.uploader.upload_stream(
+    const cloudinaryForm = new FormData();
+    cloudinaryForm.append("file", file);
+    cloudinaryForm.append("upload_preset", uploadPreset);
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
       {
-        folder: "react_uploads",
-        resource_type: "auto",
-      },
-      (error, result) => {
-        if (error) {
-          return res.status(500).json({ error: error.message });
-        }
-
-        res.status(200).json(result);
+        method: "POST",
+        body: cloudinaryForm,
       }
     );
 
-    stream.end(req.file.buffer);
-  });
+    const result = await response.json();
+    return res.status(200).json(result);
+
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 }

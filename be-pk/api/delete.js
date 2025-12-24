@@ -1,27 +1,27 @@
-import cloudinary from "./cloudinary";
-
 export default async function handler(req, res) {
+  // ===== CORS =====
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
   if (req.method !== "DELETE") {
-    return res.status(405).json({ message: "Method Not Allowed" });
+    return res.status(405).json({ error: "Method Not Allowed" });
   }
-
-  const { public_id, resource_type } = req.body;
-
-  if (!public_id) {
-    return res.status(400).json({ error: "public_id wajib diisi" });
-  }
-
-  const type = ["image", "video", "raw"].includes(resource_type)
-    ? resource_type
-    : "image";
 
   try {
-    const result = await cloudinary.uploader.destroy(public_id, {
-      resource_type: type,
-    });
+    const body = req.body || {};
+    const { public_id } = body;
 
-    res.status(200).json({ success: true, result });
+    if (!public_id) {
+      return res.status(400).json({ error: "public_id wajib" });
+    }
+
+    return res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 }
