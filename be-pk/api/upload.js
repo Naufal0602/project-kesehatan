@@ -1,60 +1,29 @@
-import multer from "multer";
-import cloudinary from "./cloudinary";
+const uploadFile = async (file) => {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("upload_preset", "react_unsigned"); // pastikan ini nama preset kamu
+  form.append("folder", "react_uploads");
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-});
+  const res = await fetch(
+    "https://api.cloudinary.com/v1_1/dmqehg4y5/auto/upload",
+    {
+      method: "POST",
+      body: form,
+    }
+  );
 
-export const config = {
-  api: {
-    bodyParser: false, // WAJIB untuk multer
-  },
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error("Upload error: " + t);
+  }
+
+  const data = await res.json();
+
+  return {
+    nama_file: file.name,
+    file_url: data.secure_url,
+    public_id: data.public_id,
+    resource_type: data.resource_type,
+    format: data.format,
+  };
 };
-
-export default function handler(req, res) {
-  // ===== CORS =====
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method Not Allowed" });
-  }
-
-  upload.single("file")(req, res, async (err) => {
-    if (err) {
-      console.error("❌ Multer error:", err);
-      return res.status(500).json({ error: err.message });
-    }
-
-    if (!req.file) {
-      return res.status(400).json({ error: "File tidak ditemukan" });
-    }
-
-    try {
-      const stream = cloudinary.uploader.upload_stream(
-        {
-          folder: "react_uploads",
-          resource_type: "auto",
-        },
-        (error, result) => {
-          if (error) {
-            console.error("❌ Cloudinary error:", error);
-            return res.status(500).json({ error: error.message });
-          }
-
-          return res.status(200).json(result);
-        }
-      );
-
-      stream.end(req.file.buffer);
-    } catch (e) {
-      console.error("❌ Upload crash:", e);
-      return res.status(500).json({ error: e.message });
-    }
-  });
-}
