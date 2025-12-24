@@ -1,16 +1,22 @@
+import multer from "multer";
+import cloudinary from "./cloudinary";
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+});
+
 export const config = {
   api: {
-    bodyParser: false,
+    bodyParser: false, // WAJIB untuk multer
   },
 };
 
-export default async function handler(req, res) {
-  // ===== CORS HEADERS =====
+export default function handler(req, res) {
+  // ===== CORS =====
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // Handle preflight
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
@@ -19,33 +25,36 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method Not Allowed" });
   }
 
-  try {
-    const formData = await req.formData();
-    const file = formData.get("file");
+  upload.single("file")(req, res, async (err) => {
+    if (err) {
+      console.error("❌ Multer error:", err);
+      return res.status(500).json({ error: err.message });
+    }
 
-    if (!file) {
+    if (!req.file) {
       return res.status(400).json({ error: "File tidak ditemukan" });
     }
 
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-    const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET;
+    try {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: "react_uploads",
+          resource_type: "auto",
+        },
+        (error, result) => {
+          if (error) {
+            console.error("❌ Cloudinary error:", error);
+            return res.status(500).json({ error: error.message });
+          }
 
-    const cloudinaryForm = new FormData();
-    cloudinaryForm.append("file", file);
-    cloudinaryForm.append("upload_preset", uploadPreset);
+          return res.status(200).json(result);
+        }
+      );
 
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
-      {
-        method: "POST",
-        body: cloudinaryForm,
-      }
-    );
-
-    const result = await response.json();
-    return res.status(200).json(result);
-
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
+      stream.end(req.file.buffer);
+    } catch (e) {
+      console.error("❌ Upload crash:", e);
+      return res.status(500).json({ error: e.message });
+    }
+  });
 }
