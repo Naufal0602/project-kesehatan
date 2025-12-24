@@ -4,98 +4,76 @@ import cors from "cors";
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import dotenv from "dotenv";
-import path from "path";           // 🔹 harus diimport
-import { fileURLToPath } from "url"; // 🔹 untuk ESM __dirname
+import path from "path";
+import { fileURLToPath } from "url";
 
-// 🔹 Setup __dirname di ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// 🔹 Load .env dari folder be-pk
+// Load ENV
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 const app = express();
-app.use(cors());
+
+// CORS WAJIB LENGKAP
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type"],
+}));
+
 app.use(express.json());
 
-// 🔹 Konfigurasi Cloudinary
+// Cloudinary setup
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// 🔹 Gunakan memory storage (tanpa simpan file lokal)
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
+const upload = multer({ storage: multer.memoryStorage() });
 
-// ==================================================
-// 🔸 Upload ke Cloudinary
-// ==================================================
+// ========================== UPLOAD ==========================
 app.post("/upload", upload.single("file"), async (req, res) => {
   try {
     const file = req.file;
-    if (!file) return res.status(400).json({ error: "Tidak ada file yang diupload" });
+    if (!file) return res.status(400).json({ error: "Tidak ada file" });
 
     const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        folder: "react_uploads",
-        resource_type: "auto",
-      },
+      { folder: "react_uploads", resource_type: "auto" },
       (error, result) => {
-        if (error) {
-          console.error("Upload error:", error);
-          return res.status(500).json({ error: error.message });
-        }
-
-        res.json({
-          url: result.secure_url,
-          public_id: result.public_id,
-          resource_type: result.resource_type,
-          format: result.format,
-        });
+        if (error) return res.status(500).json({ error: error.message });
+        res.json(result);
       }
     );
 
     uploadStream.end(file.buffer);
-  } catch (error) {
-    console.error("Server error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 
-// ==================================================
-// 🔸 Hapus file dari Cloudinary
-// ==================================================
+// ========================== DELETE ==========================
 app.delete("/delete", async (req, res) => {
   try {
     const { public_id, resource_type } = req.body;
-    if (!public_id) return res.status(400).json({ error: "public_id wajib diisi" });
 
-    const validTypes = ["image", "video", "raw"];
-    const type = validTypes.includes(resource_type) ? resource_type : "raw";
+    if (!public_id)
+      return res.status(400).json({ error: "public_id wajib diisi" });
+
+    const type = ["image", "video", "raw"].includes(resource_type)
+      ? resource_type
+      : "raw";
 
     const result = await cloudinary.uploader.destroy(public_id, {
       resource_type: type,
     });
 
-    if (result.result !== "ok" && result.result !== "not found") {
-      throw new Error(`Cloudinary gagal hapus file: ${result.result}`);
-    }
-
     res.json({ success: true, result });
-  } catch (err) {
-    console.error("❌ Gagal hapus file:", err);
-    res.status(500).json({ error: "Gagal hapus file" });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 
-
-
-// ==================================================
-// 🔸 Jalankan server lokal (opsional)
-// app.listen(3030, () => console.log("Server running on port 3030"));
-
-// ==================================================
-// 🧩 Export handler untuk Vercel (jika deploy)
+// Export (WAJIB untuk Vercel)
 export default app;
