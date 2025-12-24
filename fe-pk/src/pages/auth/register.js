@@ -84,10 +84,13 @@ const RegisterPendingStyled = () => {
         const formDataUpload = new FormData();
         formDataUpload.append("file", fotoFile);
 
-        const res = await fetch("https://project-kesehatan.vercel.app/upload", {
-          method: "POST",
-          body: formDataUpload,
-        });
+        const res = await fetch(
+          "https://project-kesehatan.vercel.app/api/upload",
+          {
+            method: "POST",
+            body: formDataUpload,
+          }
+        );
 
         const data = await res.json();
 
