@@ -168,37 +168,38 @@ const DataUmumAdmin = () => {
   // Upload helper: kirim file ke backend (/upload)
   // backend mengembalikan { url, public_id, resource_type, format }
   // -------------------------
-  const uploadFile = async (file) => {
-    const form = new FormData();
-    form.append("file", file);
+const uploadFile = async (file) => {
+  const form = new FormData();
+  form.append("file", file);
 
-    const res = await fetch(
-      "https://api.cloudinary.com/v1_1/dmqehg4y5/auto/upload",
-      {
-        method: "POST",
-        body: form,
-      }
-    );
+  // 🔑 WAJIB untuk unsigned upload
+  form.append("upload_preset", "react_unsigned"); // HARUS sama dengan preset di Cloudinary
+  form.append("folder", "react_uploads");
 
-    if (!res.ok) {
-      const t = await res.text();
-      throw new Error("Upload error: " + t);
+  const res = await fetch(
+    "https://api.cloudinary.com/v1_1/dmqehg4y5/auto/upload",
+    {
+      method: "POST",
+      body: form,
     }
+  );
 
-    const data = await res.json();
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error("Upload error: " + t);
+  }
 
-    if (!data.url || !data.public_id) {
-      throw new Error("Respons server tidak valid");
-    }
+  const data = await res.json();
 
-    return {
-      nama_file: file.name,
-      file_url: data.url,
-      public_id: data.public_id,
-      resource_type: data.resource_type || "auto",
-      format: data.format || extractExtFromFilename(file.name) || "",
-    };
+  return {
+    nama_file: file.name,
+    file_url: data.secure_url, // 🔥 pakai secure_url
+    public_id: data.public_id,
+    resource_type: data.resource_type,
+    format: data.format || extractExtFromFilename(file.name) || "",
   };
+};
+
 
   const extractExtFromFilename = (name) => {
     if (!name) return "";
