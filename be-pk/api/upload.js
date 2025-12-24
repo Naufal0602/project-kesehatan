@@ -5,7 +5,7 @@ const uploadFile = async (file) => {
   form.append("folder", "react_uploads");
 
   const res = await fetch(
-    "https://api.cloudinary.com/v1_1/dmqehg4y5/auto/upload",
+    "https://api.cloudinary.com/v1_1/dmqehg4y5/auto/upload", 
     {
       method: "POST",
       body: form,

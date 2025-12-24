@@ -44,10 +44,13 @@ export default function EditProfile() {
     const data = new FormData();
     data.append("file", file);
 
-    const res = await fetch("https://api.cloudinary.com/v1_1/dmqehg4y5/auto/upload"", {
-      method: "POST",
-      body: data,
-    });
+    const res = await fetch(
+      "https://api.cloudinary.com/v1_1/dmqehg4y5/auto/upload",
+      {
+        method: "POST",
+        body: data,
+      }
+    );
 
     const result = await res.json();
     return result;

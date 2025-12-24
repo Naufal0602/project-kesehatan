@@ -172,10 +172,13 @@ const DataUmumAdmin = () => {
     const form = new FormData();
     form.append("file", file);
 
-    const res = await fetch("https://api.cloudinary.com/v1_1/dmqehg4y5/auto/upload"", {
-      method: "POST",
-      body: form,
-    });
+    const res = await fetch(
+      "https://api.cloudinary.com/v1_1/dmqehg4y5/auto/upload",
+      {
+        method: "POST",
+        body: form,
+      }
+    );
 
     if (!res.ok) {
       const t = await res.text();

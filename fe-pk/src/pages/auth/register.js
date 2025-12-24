@@ -85,7 +85,7 @@ const RegisterPendingStyled = () => {
         formDataUpload.append("file", fotoFile);
 
         const res = await fetch(
-          "https://api.cloudinary.com/v1_1/dmqehg4y5/auto/upload"",
+          "https://api.cloudinary.com/v1_1/dmqehg4y5/auto/upload",
           {
             method: "POST",
             body: formDataUpload,
