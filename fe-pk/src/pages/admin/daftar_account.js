@@ -11,6 +11,8 @@ import {
   where,
 } from "firebase/firestore";
 import { Loader2, Info, Trash2, Search } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const DaftarAccount = () => {
   const [akunList, setAkunList] = useState([]);
@@ -19,6 +21,8 @@ const DaftarAccount = () => {
   const [showModal, setShowModal] = useState(false);
   const [refresh, setRefresh] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [selectedTingkatan, setSelectedTingkatan] = useState("all");
 
   const fetchAkun = async () => {
     setLoading(true);
@@ -175,6 +179,73 @@ const DaftarAccount = () => {
     t.nama?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const tingkatanOptions = [
+    "all",
+    ...new Set(akunList.map((a) => a.nama_tingkatan).filter(Boolean)),
+  ];
+  const handleExportPDF = () => {
+    const doc = new jsPDF("landscape");
+
+    // Filter data
+    let dataToExport = akunList;
+
+    if (selectedTingkatan !== "all") {
+      dataToExport = akunList.filter(
+        (a) => a.nama_tingkatan === selectedTingkatan
+      );
+    }
+
+    if (dataToExport.length === 0) {
+      alert("Data tidak tersedia");
+      return;
+    }
+
+    doc.setFontSize(14);
+    doc.text(
+      selectedTingkatan === "all"
+        ? "Laporan Data Seluruh User"
+        : `Laporan Data User - Tingkatan ${selectedTingkatan}`,
+      14,
+      15
+    );
+
+    autoTable(doc, {
+      startY: 25,
+      head: [
+        [
+          "Nama",
+          "Email",
+          "Lembaga",
+          "Tingkatan",
+          "LSPSN",
+          "KTA",
+          "Tanggal Lahir",
+          "Role",
+        ],
+      ],
+      body: dataToExport.map((u) => [
+        u.nama || "-",
+        u.email || "-",
+        u.lembaga || "-",
+        u.nama_tingkatan || "-",
+        u.lspsn || "-",
+        u.kta || "-",
+        u.ttl || "-",
+        u.role || "-",
+      ]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [34, 197, 94] }, // hijau
+    });
+
+    doc.save(
+      selectedTingkatan === "all"
+        ? "data-user-semua.pdf"
+        : `data-user-tingkatan-${selectedTingkatan}.pdf`
+    );
+
+    setShowExportModal(false);
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       <div className="fixed top-0 left-0 z-50">
@@ -188,6 +259,7 @@ const DaftarAccount = () => {
         </h2>
 
         <div className="bg-white p-4 rounded-lg shadow-md flex flex-col gap-6">
+         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           {/* 🔍 Search bar */}
           <div
             className={`flex items-center border justify-right transition-all duration-300 rounded-lg px-3 py-1 w-full md:w-64 ${
@@ -208,6 +280,14 @@ const DaftarAccount = () => {
               className="w-full px-4 focus:outline-none text-sm sm:text-base bg-transparent"
               placeholder="Cari Nama Akun..."
             />
+          </div>
+
+           <button
+              onClick={() => setShowExportModal(true)}
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md w-fit"
+            >
+              Export PDF
+            </button>
           </div>
 
           {/* 🔹 Wrapper tabel dengan scroll horizontal */}
@@ -291,6 +371,45 @@ const DaftarAccount = () => {
                   className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-md"
                 >
                   Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showExportModal && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-sm">
+              <h3 className="text-lg font-semibold mb-4">Export Data User</h3>
+
+              <label className="text-sm font-medium">Pilih Tingkatan</label>
+              <select
+                value={selectedTingkatan}
+                onChange={(e) => setSelectedTingkatan(e.target.value)}
+                className="w-full mt-2 border rounded-md px-3 py-2"
+              >
+                <option value="all">Semua User</option>
+                {tingkatanOptions
+                  .filter((t) => t !== "all")
+                  .map((t, i) => (
+                    <option key={i} value={t}>
+                      {t}
+                    </option>
+                  ))}
+              </select>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => setShowExportModal(false)}
+                  className="px-4 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-md"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleExportPDF}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md"
+                >
+                  Export
                 </button>
               </div>
             </div>

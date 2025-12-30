@@ -18,6 +18,10 @@ import FullScreenLoader from "../../../components/FullScreenLoader";
 import { Trash2, Pencil } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+
 
 export default function UserDataPenyakit() {
   const [user, setUser] = useState(null);
@@ -31,6 +35,9 @@ export default function UserDataPenyakit() {
   const [loadingStatus, setLoadingStatus] = useState(null);
   const [dataPenyakit, setDataPenyakit] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState(null); // 0 - 11
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear()); 
 
   // modal states
   const [showAddModal, setShowAddModal] = useState(false);
@@ -304,6 +311,93 @@ export default function UserDataPenyakit() {
     },
   ];
 
+  const BULAN = [
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember",
+  ];
+
+  const filteredData = dataPenyakit.filter((item) => {
+    const date = new Date(item.bulan.seconds * 1000);
+
+    const matchMonth =
+      selectedMonth === null || date.getMonth() === selectedMonth;
+
+    const matchYear =
+      selectedYear === null || date.getFullYear() === selectedYear;
+
+    const keyword = search.toLowerCase();
+    const matchSearch =
+      item.nama_penyakit.toLowerCase().includes(keyword) ||
+      item.nama_jenis_penyakit.toLowerCase().includes(keyword);
+
+    return matchMonth && matchYear && matchSearch;
+  });
+
+  const handleExportPDF = () => {
+  if (filteredData.length === 0) {
+    alert("Tidak ada data untuk diexport");
+    return;
+  }
+
+  const docPdf = new jsPDF({
+    orientation: "portrait",
+    unit: "pt",
+    format: "a4",
+  });
+
+  const today = new Date();
+  const tanggalCetak = today.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+
+  docPdf.setFontSize(16);
+  docPdf.text("LAPORAN DATA PENYAKIT", 40, 40);
+
+  docPdf.setFontSize(11);
+  docPdf.text(`Tahun: ${selectedYear}`, 40, 60);
+  docPdf.text(`Tanggal Cetak: ${tanggalCetak}`, 40, 75);
+
+  autoTable(docPdf, {
+    startY: 100,
+    head: [[
+      "No",
+      "Nama Penyakit",
+      "Jenis",
+      "Hasil Lab",
+      "Status",
+      "Bulan"
+    ]],
+    body: filteredData.map((row, i) => [
+      i + 1,
+      row.nama_penyakit,
+      row.nama_jenis_penyakit,
+      row.hasil_lab,
+      row.status,
+      new Date(row.bulan.seconds * 1000).toLocaleDateString("id-ID", {
+        month: "long",
+        year: "numeric",
+      }),
+    ]),
+    styles: { fontSize: 10 },
+    headStyles: { fillColor: [22, 163, 74], textColor: 255 },
+  });
+
+  docPdf.save(`laporan_data_penyakit_${selectedYear}.pdf`);
+};
+
+
   return (
     <div className="flex min-h-screen bg-gray-100">
       <div className="fixed top-0 left-0 z-50">
@@ -339,25 +433,71 @@ export default function UserDataPenyakit() {
             + Tambah Data
           </button>
         </div>
+        <div className="bg-white p-5">
+          <div className="flex flex-col md:flex-row gap-3 mb-4">
+            {/* Filter Bulan */}
+            <select
+              value={selectedMonth ?? ""}
+              onChange={(e) =>
+                setSelectedMonth(
+                  e.target.value === "" ? null : Number(e.target.value)
+                )
+              }
+              className="px-4 py-2 border rounded-lg"
+            >
+              <option value="">Semua Bulan</option>
+              {BULAN.map((b, i) => (
+                <option key={i} value={i}>
+                  {b}
+                </option>
+              ))}
+            </select>
 
-        {/* Tabel */}
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          {loading ? (
-            <p className="text-center text-gray-500 py-10">Memuat data...</p>
-          ) : dataPenyakit.length === 0 ? (
-            <p className="text-center text-gray-500 py-10">
-              Belum ada data penyakit.
-            </p>
-          ) : (
-            <DataTable
-              columns={columns}
-              data={dataPenyakit}
-              pagination
-              highlightOnHover
-              striped
-              responsive
+            <DatePicker
+              selected={new Date(selectedYear, 0, 1)}
+              onChange={(date) => setSelectedYear(date.getFullYear())}
+              showYearPicker
+              dateFormat="yyyy"
+              className="border px-4 py-2 rounded-lg w-full md:w-auto"
+              placeholderText="Pilih Tahun"
             />
-          )}
+
+            {/* Search */}
+            <input
+              type="text"
+              placeholder="Cari nama / jenis penyakit..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="px-4 py-2 border rounded-lg w-full md:w-1/3"
+            />
+
+            <button
+              onClick={handleExportPDF}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+            >
+              📄 Export PDF
+            </button>
+          </div>
+
+          {/* Tabel */}
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            {loading ? (
+              <p className="text-center text-gray-500 py-10">Memuat data...</p>
+            ) : dataPenyakit.length === 0 ? (
+              <p className="text-center text-gray-500 py-10">
+                Belum ada data penyakit.
+              </p>
+            ) : (
+                <DataTable
+                  columns={columns}
+                  data={filteredData}
+                  pagination
+                  highlightOnHover
+                  striped
+                  responsive
+                />
+            )}
+          </div>
         </div>
       </div>
 

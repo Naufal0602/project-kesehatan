@@ -16,7 +16,9 @@ import FullScreenLoader from "../../../components/FullScreenLoader";
 import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
 import autoTable from "jspdf-autotable";
-import { Info, Pencil, X,Trash2 } from "lucide-react";
+import { Info, Pencil, X, Trash2 } from "lucide-react";
+import Select from "react-select";
+
 const AdminDataPenyakitDetail = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +34,7 @@ const AdminDataPenyakitDetail = () => {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [format, setFormat] = useState("pdf"); // default PDF
+  const [filterJenis, setFilterJenis] = useState(null);
 
   const [newObat, setNewObat] = useState({
     nama_obat: "",
@@ -338,8 +341,7 @@ const AdminDataPenyakitDetail = () => {
         nama_jenis: item.nama_jenis,
         antisipasi: item.antisipasi?.join(", "),
         tips: item.tips || "",
-        obat: obatFormatted || "", // dipakai
-        // obatList tidak dimasukkan
+        obat: obatFormatted || "",
       };
     });
 
@@ -380,6 +382,17 @@ const AdminDataPenyakitDetail = () => {
     XLSX.writeFile(workbook, "data_penyakit_filtered.xlsx");
   };
 
+  const jenisOptions = data.map((item) => ({
+    value: item.nama_jenis,
+    label: item.nama_jenis,
+  }));
+
+  const filteredData = filterJenis
+    ? data.filter((item) =>
+        item.nama_jenis.toLowerCase().includes(filterJenis.value.toLowerCase())
+      )
+    : data;
+
   return (
     <div className="flex min-h-screen bg-gray-100">
       <div className="fixed top-0 left-0 z-50">
@@ -400,23 +413,34 @@ const AdminDataPenyakitDetail = () => {
         <h1 className="text-2xl font-bold text-green-700 mb-6 text-center bg-white p-4 rounded shadow-md">
           Data Jenis Penyakit (Obat, Antisipasi & Tips)
         </h1>
-        <div className="flex mb-4 w-full justify-end justify-items-end">
-          <button
-            onClick={() => setShowPrintModal(true)}
-            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
-          >
-            Print
-          </button>
-        </div>
+        <div className="bg-white p-4">
+          <div className="flex mb-4 w-full justify-between gap-4 flex-col sm:flex-row">
+            <Select
+              options={jenisOptions}
+              value={filterJenis}
+              onChange={setFilterJenis}
+              isClearable
+              isSearchable
+              placeholder="Filter nama jenis penyakit..."
+            />
 
-        <div className="bg-white shadow-md rounded-lg p-4">
-          <DataTable
-            columns={columns}
-            data={data}
-            progressPending={loading}
-            pagination
-            highlightOnHover
-          />
+            <button
+              onClick={() => setShowPrintModal(true)}
+              className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+            >
+              Export PDF
+            </button>
+          </div>
+
+          <div className="bg-white shadow-md rounded-lg p-4">
+            <DataTable
+              columns={columns}
+              data={filteredData}
+              progressPending={loading}
+              pagination
+              highlightOnHover
+            />
+          </div>
         </div>
 
         {/* Modal INFO */}

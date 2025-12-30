@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
-import Sidebar from "../../../components/sidebar"; 
+import Sidebar from "../../../components/sidebar";
 import {
   collection,
   addDoc,
@@ -25,7 +25,8 @@ import {
 import FullScreenLoader from "../../../components/FullScreenLoader";
 import ConfirmModal from "../../../components/ConfirmModal";
 import Select from "react-select";
-
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const initialFormData = {
   id: "",
@@ -43,7 +44,7 @@ const initialFormData = {
 // --- Komponen Modal Detail ---
 const DetailModal = ({ data, onClose }) => {
   const fields = [
-    { label: "Peserta ID", key: "peserta_id" },
+    { label: "Nama Peserta", key: "peserta_nama" },
     { label: "Admin Input", key: "admin_nama" },
     { label: "Tanggal Pengujian", key: "tanggal_pengujian" },
     { label: "Index Massa Tubuh", key: "index_masa_tubuh" },
@@ -97,6 +98,10 @@ const DataMateriAdmin = () => {
   const [selectedData, setSelectedData] = useState(null);
   const [formData, setFormData] = useState(initialFormData);
   const [usersList, setUsersList] = useState([]);
+  const [filterText, setFilterText] = useState("");
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   const resetNotifications = useCallback(() => {
     setSuccess(false);
@@ -151,11 +156,17 @@ const DataMateriAdmin = () => {
   // --- ACTIONS ---
   const handleView = useCallback(
     (row) => {
-      setSelectedData(row);
+      const peserta = pesertaList.find((p) => p.id === row.peserta_id);
+
+      setSelectedData({
+        ...row,
+        peserta_nama: peserta?.nama_lengkap || peserta?.nama || "Tanpa Nama",
+      });
+
       setShowDetailModal(true);
       resetNotifications();
     },
-    [resetNotifications]
+    [pesertaList, resetNotifications]
   );
 
   const handleEdit = useCallback(
@@ -172,9 +183,13 @@ const DataMateriAdmin = () => {
 
   const handleDelete = useCallback(
     (row) => {
+      const peserta = pesertaList.find((p) => p.id === row.peserta_id);
+      const namaPeserta =
+        peserta?.nama_lengkap || peserta?.nama || "peserta ini";
+
       setConfirmData({
         title: "Hapus Data",
-        message: `Yakin ingin menghapus data tanggal ${row.tanggal_pengujian}?`,
+        message: `Yakin ingin menghapus data milik ${namaPeserta} pada tanggal ${row.tanggal_pengujian}?`,
         onConfirm: async () => {
           try {
             setSubmitLoading(true);
@@ -186,14 +201,12 @@ const DataMateriAdmin = () => {
             setError(true);
           } finally {
             setSubmitLoading(false);
-            setTimeout(() => resetNotifications(), 3000);
             setConfirmData(null);
           }
         },
       });
-      resetNotifications();
     },
-    [fetchDataMateri, resetNotifications]
+    [pesertaList, fetchDataMateri]
   );
 
   const handleAdd = useCallback(() => {
@@ -293,25 +306,30 @@ const DataMateriAdmin = () => {
       {
         name: "Aksi",
         cell: (row) => (
-          <div className="flex space-x-2">
+          <div
+            className="flex space-x-2 relative z-10"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
+              type="button"
               onClick={() => handleView(row)}
-              className="bg-green-500 text-white p-1 rounded hover:bg-green-600"
+              className="bg-green-500 text-white p-1 rounded"
             >
               <Eye size={16} />
             </button>
+
             <button
+              type="button"
               onClick={() => handleEdit(row)}
-              className="bg-blue-500 text-white p-1 rounded hover:bg-blue-600"
+              className="bg-blue-500 text-white p-1 rounded"
             >
               <Edit size={16} />
             </button>
+
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDelete(row);
-              }}
-              className="bg-red-500 text-white p-1 rounded hover:bg-red-600"
+              type="button"
+              onClick={() => handleDelete(row)}
+              className="bg-red-500 hover:bg-red-800 text-white p-1 rounded"
             >
               <Trash2 size={16} />
             </button>
@@ -324,13 +342,106 @@ const DataMateriAdmin = () => {
   );
 
   const pesertaUserOnly = pesertaList.filter((p) => {
-    const user = usersList.find((u) => u.id === p.id); 
+    const user = usersList.find((u) => u.id === p.id);
     return user?.role === "user";
   });
-  
+
+  const filteredData = useMemo(() => {
+    return dataMateri.filter((item) => {
+      const peserta = pesertaList.find((p) => p.id === item.peserta_id);
+      const namaPeserta = peserta?.nama_lengkap || peserta?.nama || "";
+
+      return (
+        namaPeserta.toLowerCase().includes(filterText.toLowerCase()) ||
+        item.admin_nama?.toLowerCase().includes(filterText.toLowerCase()) ||
+        item.tanggal_pengujian?.includes(filterText)
+      );
+    });
+  }, [filterText, dataMateri, pesertaList]);
+
+  const generatePDF = (data, title = "Laporan Data Materi") => {
+    const doc = new jsPDF("l", "mm", "a4");
+
+    doc.setFontSize(14);
+    doc.text(title, 14, 15);
+
+    const tableData = data.map((row, index) => {
+      const peserta = pesertaList.find((p) => p.id === row.peserta_id);
+      const namaPeserta = peserta?.nama_lengkap || peserta?.nama || "-";
+
+      return [
+        index + 1,
+        namaPeserta,
+        row.admin_nama || "-",
+        row.tanggal_pengujian || "-",
+        row.index_masa_tubuh ?? "-",
+        row.kelenturan ?? "-",
+        row.vo2max ?? "-",
+        row.push_up_mnt ?? "-",
+        row.sit_up_mnt ?? "-",
+        row.squad_mnt ?? "-",
+        row.tahan_napas_detik ?? "-",
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 25,
+      head: [
+        [
+          "No",
+          "Nama Peserta",
+          "Admin Input",
+          "Tanggal",
+          "IMT",
+          "Kelenturan (cm)",
+          "VO2Max",
+          "Push Up (mnt)",
+          "Sit Up (mnt)",
+          "Squat (mnt)",
+          "Tahan Napas (dtk)",
+        ],
+      ],
+      body: tableData,
+      styles: {
+        fontSize: 9,
+        halign: "center",
+        valign: "middle",
+      },
+      headStyles: {
+        fillColor: [22, 163, 74],
+        textColor: 255,
+        fontSize: 9,
+      },
+      alternateRowStyles: {
+        fillColor: [245, 245, 245],
+      },
+    });
+
+    doc.save("laporan-data-materi.pdf");
+  };
+  const exportAllData = () => {
+    generatePDF(dataMateri, "Laporan Data Materi");
+    setShowExportModal(false);
+  };
+
+  const exportByDate = () => {
+    if (!fromDate || !toDate) {
+      alert("Pilih tanggal dari dan sampai");
+      return;
+    }
+
+    const filtered = dataMateri.filter((item) => {
+      return (
+        item.tanggal_pengujian >= fromDate && item.tanggal_pengujian <= toDate
+      );
+    });
+
+    generatePDF(filtered, `Laporan Data Materi (${fromDate} s/d ${toDate})`);
+
+    setShowExportModal(false);
+  };
 
   if (loading) return <FullScreenLoader />;
-
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -343,12 +454,11 @@ const DataMateriAdmin = () => {
           <h2 className="text-green-600 text-lg sm:text-xl font-bold">
             Daftar data materi
           </h2>
-
           <button
-            onClick={handleAdd}
-            className="bg-green-600 flex text-white px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base rounded-lg shadow-md hover:bg-green-700 transition duration-300"
+            onClick={() => setShowExportModal(true)}
+            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
           >
-            <Plus size={18} className="mr-1" /> Tambah Data
+            Export PDF
           </button>
         </div>
 
@@ -362,16 +472,33 @@ const DataMateriAdmin = () => {
             <XCircle className="mr-2" size={20} /> Terjadi kesalahan.
           </div>
         )}
+        <div className="bg-white p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
+          <input
+            type="text"
+            placeholder="Cari peserta / admin / tanggal..."
+            className="border p-2 rounded mb-4 w-full sm:w-1/3"
+            value={filterText}
+            onChange={(e) => setFilterText(e.target.value)}
+          />
+           <button
+            onClick={handleAdd}
+            className="bg-green-600 flex text-white px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base rounded-lg shadow-md hover:bg-green-700 transition duration-300"
+          >
+            <Plus size={18} className="mr-1" /> Tambah Data
+          </button>
+          </div>
 
-        <DataTable
-          columns={columns}
-          data={dataMateri}
-          pagination
-          highlightOnHover
-          noDataComponent="Belum ada data."
-          className="shadow-lg rounded-lg"
-          onRowDoubleClicked={() => {}}
-        />
+          <DataTable
+            columns={columns}
+            data={filteredData}
+            pagination
+            highlightOnHover
+            noDataComponent="Belum ada data."
+            className="shadow-lg rounded-lg"
+            pointerOnHover
+          />
+        </div>
 
         {showFormModal && (
           <div className="fixed inset-0 flex justify-center items-center bg-black bg-opacity-50 z-50 p-4">
@@ -394,9 +521,9 @@ const DataMateriAdmin = () => {
                 </label>
                 <Select
                   options={pesertaUserOnly.map((p) => ({
-                      value: p.id,
-                      label: p.nama || p.id,
-                    }))}
+                    value: p.id,
+                    label: p.nama || p.id,
+                  }))}
                   value={
                     pesertaList.find((p) => p.id === formData.peserta_id)
                       ? {
@@ -470,7 +597,15 @@ const DataMateriAdmin = () => {
           </div>
         )}
       </div>
-
+      {confirmData && (
+        <ConfirmModal
+          show={true}
+          title={confirmData.title}
+          message={confirmData.message}
+          onConfirm={confirmData.onConfirm}
+          onCancel={() => setConfirmData(null)}
+        />
+      )}
       {/* Modal Detail */}
       {showDetailModal && selectedData && (
         <DetailModal
@@ -479,13 +614,54 @@ const DataMateriAdmin = () => {
         />
       )}
 
-      {confirmData && (
-        <ConfirmModal
-          title={confirmData.title}
-          message={confirmData.message}
-          onConfirm={confirmData.onConfirm}
-          onCancel={() => setConfirmData(null)}
-        />
+      {showExportModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl w-full max-w-md">
+            <h2 className="text-lg font-semibold mb-4">Export PDF</h2>
+
+            <button
+              onClick={exportAllData}
+              className="w-full bg-green-600 text-white py-2 rounded mb-4 hover:bg-green-700"
+            >
+              Export Semua Data
+            </button>
+
+            <div className="border-t pt-4">
+              <p className="text-sm font-medium mb-2">
+                Export Berdasarkan Tanggal
+              </p>
+
+              <div className="flex gap-2 mb-4">
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="border p-2 rounded w-full"
+                />
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="border p-2 rounded w-full"
+                />
+              </div>
+
+              <button
+                onClick={exportByDate}
+                className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+              >
+                Export Berdasarkan Tanggal
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShowExportModal(false)}
+              className="mt-4 w-full text-gray-500"
+            >
+              Batal
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

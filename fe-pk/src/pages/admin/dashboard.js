@@ -39,7 +39,7 @@ const AdminDashboard = () => {
   const [showDetail, setShowDetail] = useState(false);
   const [selectedJenis, setSelectedJenis] = useState("");
   const [search, setSearch] = useState("");
-  const [limit, setLimit] = useState("100");
+  const [limit, setLimit] = useState("10000");
   const [page, setPage] = useState(1);
 
   const ITEMS_PER_PAGE = 5;
@@ -68,7 +68,6 @@ const AdminDashboard = () => {
     setShowDetail(true);
   };
 
-  /* ===================== FETCH DATA ===================== */
   useEffect(() => {
     const fetchAll = async () => {
       // CARD DATA
@@ -171,6 +170,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* FILTER BULAN */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
         <select
           value={selectedMonth}
           onChange={(e) => setSelectedMonth(Number(e.target.value))}
@@ -189,6 +189,7 @@ const AdminDashboard = () => {
           onChange={(e) => setSearch(e.target.value)}
           className="px-4 py-2 border rounded-lg w-full md:w-1/3 mb-3"
         />
+        </div>
 
         {/* CHART */}
         <div className="bg-white p-6 rounded-2xl shadow">

@@ -3,6 +3,7 @@ import Register from "../pages/auth/register";
 import WaitingPage from "../pages/auth/waitingPage";
 import RegisterPendingUser  from "../pages/auth/register_user";
 import Login from "../pages/auth/login";
+import ResetPassword from "../pages/auth/ResetPassword";
 
 import SuperAdminDashboard from "../pages/super_admin/dashboard";
 import SuperAdminConfirmAdmin from "../pages/super_admin/confirm_admin";
@@ -46,6 +47,7 @@ function App() {
         <Route path="/" element={<Navigate to="/login" />} />
           <Route path="/register" element={<RegisterPendingUser />} />
           <Route path="/waiting" element={<WaitingPage />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* halaman public */}
         <Route path="/registerAdmin" element={<Register />} />

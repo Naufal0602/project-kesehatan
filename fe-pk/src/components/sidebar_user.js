@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { HeartPulse, LibraryBig, House, ChevronDown } from "lucide-react";
+import { HeartPulse, LibraryBig, House, ChevronDown, ShieldCheck } from "lucide-react";
 import LogoutButton from "./logout_button";
 import { auth, db } from "../services/firebaseConfig";
 import {
@@ -34,7 +34,7 @@ const Sidebar = () => {
       icon: <HeartPulse />,
     },
     { to: "/user/data_umum/index", label: "Data Umum", icon: <HeartPulse /> },
-    { to: "/user/data_antisipasi/index", label: "Antisipasi", icon: <HeartPulse /> },
+    { to: "/user/data_antisipasi/index", label: "Antisipasi", icon: <ShieldCheck /> },
   ];
 
   // 🔹 Dengar perubahan user login dan ambil data dari Firestore

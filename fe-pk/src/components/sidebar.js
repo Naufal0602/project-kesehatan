@@ -8,7 +8,8 @@ import {
   LibraryBig,
   House,
   ChevronDown,
-  ClipboardList
+  ClipboardList,
+  ShieldCheck
 } from "lucide-react";
 
 import LogoutButton from "./logout_button";
@@ -30,7 +31,7 @@ const Sidebar = () => {
     { to: "/admin/data_umum/index", label: "Data Umum", icon: <ClipboardList /> },
     { to: "/admin/data_materi/index", label: "Data Materi", icon: <LibraryBig /> },
     { to: "/admin/data_penyakit/index", label: "Data Penyakit", icon: <HeartPulse /> },
-    { to: "/admin/data_penyakit/data_antisipasi", label: "Data Antisipasi", icon: <HeartPulse /> },
+    { to: "/admin/data_penyakit/data_antisipasi", label: "Data Antisipasi", icon: <ShieldCheck /> },
     { to: "/admin/tingkatan", label: "Tingkatan", icon: <Layers /> },
     { to: "/admin/daftar-account", label: "Daftar Akun Pengguna", icon: <Users /> },
     { to: "/admin/confirm-account", label: "Daftar Akun Tertunda", icon: <ClockFading /> },

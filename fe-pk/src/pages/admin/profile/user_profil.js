@@ -26,7 +26,6 @@ export default function UserProfile() {
 
       <div className="lg:ml-64 mt-14 p-8 w-full">
         <div className="bg-white p-6 rounded-lg shadow-md max-w-xl mx-auto">
-
           <h1 className="text-2xl font-bold mb-6 text-center">Profil Saya</h1>
 
           {!userData ? (
@@ -44,20 +43,51 @@ export default function UserProfile() {
 
               {/* DATA */}
               <div className="space-y-2 text-left">
-                <p><strong>Nama:</strong> {userData.nama}</p>
-                <p><strong>Jenis Kelamin:</strong> {userData.jenis_kelamin}</p>
-                <p><strong>NRP:</strong> {userData.nrp}</p>
-                <p><strong>KTA:</strong> {userData.kta}</p>
-                <p><strong>LSPN:</strong> {userData.lspsn}</p>
-                <p><strong>TTL:</strong> {userData.ttl}</p>
+                <p>
+                  <strong>Nama:</strong> {userData.nama}
+                </p>
+                <p>
+                  <strong>Jenis Kelamin:</strong> {userData.jenis_kelamin}
+                </p>
+                <p>
+                  <strong>NRP:</strong> {userData.nrp}
+                </p>
+                <p>
+                  <strong>KTA:</strong> {userData.kta}
+                </p>
+                <p>
+                  <strong>LSPN:</strong> {userData.lspsn}
+                </p>
+                <p>
+                  <strong>TTL:</strong> {userData.ttl}
+                </p>
               </div>
 
               {/* TOMBOL EDIT */}
               <Link
                 to="/admin/profile/edit_profil"
-                className="mt-6 inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full text-center"
+                className="
+                      mt-6 block w-full text-center
+                      bg-gradient-to-r from-blue-600 to-blue-700
+                      text-white font-semibold
+                      px-4 py-3 rounded-xl
+                      shadow-md
+                      transition-all duration-300 ease-out
+                      hover:-translate-y-1 hover:shadow-xl hover:from-blue-500 hover:to-blue-700
+                      active:translate-y-0 active:shadow-md"
               >
                 Edit Profil
+              </Link>
+
+              <Link
+                to="/reset-password"
+                className="
+    mt-4 block text-center
+    text-white font-medium
+    transition-all duration-300
+    hover:text-gray-300 hover:tracking-wide bg-red-500 py-2 rounded-xl"
+              >
+                Reset Password
               </Link>
             </>
           )}

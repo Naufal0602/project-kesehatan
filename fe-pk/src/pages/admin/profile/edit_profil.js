@@ -83,29 +83,33 @@ export default function EditProfile() {
     let resourceType = form.resource_type;
 
     try {
-      // 🔥 Jika user pilih foto baru
+      // ===== FOTO =====
       if (fotoBaru) {
-        // 1️⃣ Hapus foto lama
         if (publicID) {
           await deleteFromBackend(publicID, resourceType);
         }
 
-        // 2️⃣ Upload foto baru
         const uploaded = await uploadToBackend(fotoBaru);
-
         fotoURL = uploaded.url;
         publicID = uploaded.public_id;
         resourceType = uploaded.resource_type;
       }
 
-      // 3️⃣ Simpan Firestore
-      await updateDoc(doc(db, "data_spesifik", user.uid), {
-        ...form,
-        foto: fotoURL,
-        public_id: publicID,
-        resource_type: resourceType,
-        updated_at: new Date(),
-      });
+      // ===== UPDATE 2 KOLEKSI SEKALIGUS =====
+      await Promise.all([
+        updateDoc(doc(db, "users", user.uid), {
+          nama: form.nama,
+          updated_at: new Date(),
+        }),
+
+        updateDoc(doc(db, "data_spesifik", user.uid), {
+          ...form,
+          foto: fotoURL,
+          public_id: publicID,
+          resource_type: resourceType,
+          updated_at: new Date(),
+        }),
+      ]);
 
       setLoading("success");
       setTimeout(() => navigate("/admin/profile/user_profil"), 800);

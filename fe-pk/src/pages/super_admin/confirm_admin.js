@@ -11,42 +11,116 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "../../services/firebaseConfig";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { CheckCircle, XCircle, Loader2, Eye, X } from "lucide-react";
+import { Loader2, X, Eye, CheckCircle, XCircle } from "lucide-react";
+import FullScreenLoader from "../../components/FullScreenLoader";
+import ConfirmModal from "../../components/ConfirmModal";
+import AcceptAccountModal from "../../components/AcceptAccountModal";
+import DataTable from "react-data-table-component";
+import emailjs from "@emailjs/browser";
 
 const ConfirmAccount = () => {
   const [pendingUsers, setPendingUsers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [refresh, setRefresh] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [search, setSearch] = useState("");
+  const [loader, setLoader] = useState({
+    visible: false,
+    status: "loading",
+    message: "",
+  });
+  const [confirmModal, setConfirmModal] = useState({
+    show: false,
+    type: "", // "accept" | "reject"
+    user: null,
+  });
+  const [acceptModal, setAcceptModal] = useState({
+    show: false,
+    user: null,
+  });
+
+  const columns = [
+    {
+      name: "Nama",
+      selector: (row) => row.nama,
+      sortable: true,
+    },
+    {
+      name: "Email",
+      selector: (row) => row.email,
+      sortable: true,
+    },
+    {
+      name: "Lembaga",
+      selector: (row) => row.lembaga,
+    },
+    {
+      name: "Tingkatan",
+      selector: (row) => row.nama_tingkatan,
+    },
+    {
+      name: "Aksi",
+      cell: (row) => (
+        <div className="flex gap-2 justify-center">
+          {/* DETAIL */}
+          <button
+            onClick={() => handleView(row)}
+            className="flex items-center gap-1 bg-blue-500 hover:bg-blue-600 text-white px-2 py-2 md:px-3 md:py-1 rounded"
+            title="Detail"
+          >
+            <Eye size={18} />
+          </button>
+
+          {/* TERIMA */}
+          <button
+            onClick={() => setAcceptModal({ show: true, user: row })}
+            className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white px-2 py-2 md:px-3 md:py-1 rounded"
+            title="Terima"
+          >
+            <CheckCircle size={18} />
+          </button>
+
+          {/* TOLAK */}
+          <button
+            onClick={() =>
+              setConfirmModal({ show: true, type: "reject", user: row })
+            }
+            className="flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white px-2 py-2 md:px-3 md:py-1 rounded"
+            title="Tolak"
+          >
+            <XCircle size={18} />
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   // 🔹 Ambil data pending_users
   useEffect(() => {
     const fetchPendingUsers = async () => {
       setLoading(true);
       try {
-        const querySnapshot = await getDocs(collection(db, "pending_admin"));
+        const querySnapshot = await getDocs(collection(db, "pending_users"));
         const users = await Promise.all(
-          querySnapshot.docs.map(async (docSnap) => {
-            const data = docSnap.data();
-
-            // Ambil nama_tingkatan dari koleksi tingkatan
-            let nama_tingkatan = "-";
-            if (data.id_tingkatan) {
-              const tingkatanDoc = await getDoc(
-                doc(db, "tingkatan", data.id_tingkatan)
-              );
-              if (tingkatanDoc.exists()) {
-                nama_tingkatan = tingkatanDoc.data().nama_tingkatan;
-              }
-            }
-
-            return {
+          querySnapshot.docs
+            .map((docSnap) => ({
               id: docSnap.id,
-              ...data,
-              nama_tingkatan,
-            };
-          })
+              ...docSnap.data(),
+            }))
+            // 🔥 FILTER WAJIB
+            .filter((u) => u.requested_role === "admin")
+            .map(async (data) => {
+              let nama_tingkatan = "-";
+              if (data.id_tingkatan) {
+                const tingkatanDoc = await getDoc(
+                  doc(db, "tingkatan", data.id_tingkatan)
+                );
+                if (tingkatanDoc.exists()) {
+                  nama_tingkatan = tingkatanDoc.data().nama_tingkatan;
+                }
+              }
+              return { ...data, nama_tingkatan };
+            })
         );
 
         setPendingUsers(users);
@@ -58,97 +132,110 @@ const ConfirmAccount = () => {
     };
 
     fetchPendingUsers();
-  }, [refresh]);
+  }, []);
 
   // ✅ Fungsi Terima
-  const handleAccept = async (user) => {
-    if (!window.confirm(`Terima akun ${user.nama}?`)) return;
-    setLoading(true);
+  const handleAccept = async () => {
+    const user = acceptModal.user;
+    if (!user) return;
+    setAcceptModal({ show: false, user: null });
+    showLoader("loading", "Menyetujui akun admin...");
+
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         user.email,
         user.password
       );
+
       const createdUser = userCredential.user;
 
       await setDoc(doc(db, "users", createdUser.uid), {
         nama: user.nama,
         email: user.email,
         lembaga: user.lembaga,
-        role: "admin",
+        role: "admin", // super admin page
         created_at: serverTimestamp(),
       });
 
-      await setDoc(doc(db, "data_spesifik", createdUser.uid), {
-        user_id: createdUser.uid,
-        nrp: user.nrp,
-        nama: user.nama,
-        jenis_kelamin: user.jenis_kelamin,
-        ttl: user.ttl,
-        lspsn: user.lspsn,
-        cabang: user.cabang,
-        kta: user.kta,
-        id_tingkatan: user.id_tingkatan,
-        foto: user.foto || "",
-        public_id: user.public_id || "",
-        resource_type: user.resource_type || "raw",
-        created_at: serverTimestamp(),
-        updated_at: serverTimestamp(),
-      });
-
-      await deleteDoc(doc(db, "pending_admin", user.id));
-
-      alert("✅ Akun berhasil diterima dan dibuat di Auth + Firestore!");
-      setShowModal(false);
-      setRefresh(!refresh);
-    } catch (error) {
-      console.error("Error saat menerima akun:", error);
-      alert("❌ Terjadi kesalahan saat memproses akun. Coba cek console.");
-    } finally {
-      setLoading(false);
+      await deleteDoc(doc(db, "pending_users", user.id));
+      await sendEmail(
+      user.email,
+      user.nama,
+      "Akun admin Anda telah diterima. Silakan login.",
+      true
+    );
+      showLoader("success");
+    } catch (err) {
+      console.error(err);
+      showLoader("error", "Gagal menyetujui akun");
     }
   };
 
   // ❌ Fungsi Tolak
-  const handleReject = async (user) => {
-    if (!window.confirm(`Tolak akun ${user.nama}?`)) return;
-    setLoading(true);
+  const handleReject = async () => {
+    const user = confirmModal.user;
+    if (!user) return;
+    setConfirmModal({ show: false, type: "", user: null });
+    showLoader("loading", "Menolak akun admin...");
 
     try {
-      const response = await fetch(
-        "https://project-kesehatan.vercel.app/api/delete",
-        {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            public_id: user.public_id,
-            resource_type: user.resource_type,
-          }),
-        }
-      );
+      await fetch("https://project-kesehatan.vercel.app/api/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          public_id: user.public_id,
+          resource_type: user.resource_type,
+        }),
+      });
 
-      const result = await response.json();
-
-      if (!response.ok || result.error) {
-        console.error("❌ Gagal hapus foto di Cloudinary:", result);
-        alert(
-          "Gagal menghapus foto di Cloudinary. Data belum dihapus dari Firestore."
-        );
-        return;
-      }
-
-      await deleteDoc(doc(db, "pending_admin", user.id));
-
-      alert("❌ Akun berhasil ditolak dan foto di Cloudinary dihapus!");
-      setShowModal(false);
-      setRefresh(!refresh);
-    } catch (error) {
-      console.error("Error saat menolak akun:", error);
-      alert("Terjadi kesalahan saat menolak akun.");
-    } finally {
-      setLoading(false);
+      await deleteDoc(doc(db, "pending_users", user.id));
+      await sendEmail(
+      user.email,
+      user.nama,
+      "Maaf, pendaftaran akun admin Anda ditolak.",
+      false
+    );
+      showLoader("success");
+    } catch (err) {
+      console.error(err);
+      showLoader("error", "Gagal menolak akun");
     }
+  };
+
+  const sendEmail = (toEmail, toName, message, accepted = false) => {
+    return emailjs.send(
+      "service_dip11ah",
+      "template_57sbswo",
+      {
+        to_email: toEmail,
+        to_name: toName,
+        title: accepted ? "Akun Anda Telah Diterima" : "Akun Anda Ditolak",
+        message: message,
+        accepted: accepted,
+        year: new Date().getFullYear(),
+        login_button: accepted
+          ? `<a href="project-kesehatan-56b4b.web.app/login" class="button">Login Sekarang</a>`
+          : "",
+      },
+      "koKUzXhOxQy0j5CBc"
+    );
+  };
+
+  const filteredUsers = pendingUsers.filter((item) => {
+    const keyword = search.toLowerCase();
+    return (
+      item.nama?.toLowerCase().includes(keyword) ||
+      item.email?.toLowerCase().includes(keyword)
+    );
+  });
+
+  const showLoader = (status = "loading", message = "") => {
+    setLoader({
+      visible: true,
+      status,
+      message,
+    });
   };
 
   // 👁️ Fungsi Lihat Detail
@@ -159,6 +246,10 @@ const ConfirmAccount = () => {
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-50">
+      {loader.visible && (
+        <FullScreenLoader status={loader.status} message={loader.message} />
+      )}
+
       {/* Sidebar */}
       <div className="md:block fixed top-0 left-0">
         <Sidebar />
@@ -169,6 +260,14 @@ const ConfirmAccount = () => {
           Daftar Akun Pending
         </h1>
 
+        <input
+          type="text"
+          placeholder="Cari nama atau email..."
+          className="border rounded px-4 py-2 mb-4 w-full md:w-1/3"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+
         {loading ? (
           <div className="flex justify-center items-center h-64 text-green-600">
             <Loader2 className="animate-spin w-10 h-10" />
@@ -177,62 +276,14 @@ const ConfirmAccount = () => {
           <p className="text-gray-500 text-center">Tidak ada akun pending.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full bg-white rounded-lg shadow-md">
-              <thead>
-                <tr className="bg-green-100 text-green-700 text-sm md:text-base">
-                  <th className="py-3 px-4 text-left">Nama</th>
-                  <th className="py-3 px-4 text-left">Email</th>
-                  <th className="py-3 px-4 text-left hidden sm:table-cell">
-                    Lembaga
-                  </th>
-                  <th className="py-3 px-4 text-left hidden md:table-cell capitalize">
-                    Tingkatan
-                  </th>
-
-                  <th className="py-3 px-4 text-center">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingUsers.map((user) => (
-                  <tr
-                    key={user.id}
-                    className="border-b hover:bg-gray-50 text-sm md:text-base"
-                  >
-                    <td className="py-3 px-4">{user.nama}</td>
-                    <td className="py-3 px-4">{user.email}</td>
-                    <td className="py-3 px-4 hidden sm:table-cell">
-                      {user.lembaga}
-                    </td>
-                    <td className="py-3 px-4 hidden md:table-cell capitalize">
-                      {user.nama_tingkatan || "-"}
-                    </td>
-                    <td className="py-3 px-4 flex flex-col sm:flex-row justify-center items-center gap-2">
-                      <button
-                        onClick={() => handleView(user)}
-                        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-md flex items-center gap-1 w-full sm:w-auto justify-center"
-                      >
-                        <Eye size={18} />
-                        Proses
-                      </button>
-                      <button
-                        onClick={() => handleAccept(user)}
-                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-md flex items-center gap-1 w-full sm:w-auto justify-center"
-                      >
-                        <CheckCircle size={18} />
-                        Terima
-                      </button>
-                      <button
-                        onClick={() => handleReject(user)}
-                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-md flex items-center gap-1 w-full sm:w-auto justify-center"
-                      >
-                        <XCircle size={18} />
-                        Tolak
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <DataTable
+              columns={columns}
+              data={filteredUsers}
+              pagination
+              highlightOnHover
+              responsive
+              progressPending={loading}
+            />
           </div>
         )}
       </div>
@@ -308,6 +359,27 @@ const ConfirmAccount = () => {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        show={confirmModal.show}
+        title={confirmModal.type === "accept" ? "Terima Akun" : "Tolak Akun"}
+        message={
+          confirmModal.type === "accept"
+            ? `Apakah kamu yakin ingin menerima akun ${confirmModal.user?.nama}?`
+            : `Apakah kamu yakin ingin menolak akun ${confirmModal.user?.nama}?`
+        }
+        onCancel={() => setConfirmModal({ show: false, type: "", user: null })}
+        onConfirm={() => {
+          confirmModal.type === "accept" ? handleAccept() : handleReject();
+        }}
+      />
+      <AcceptAccountModal
+        show={acceptModal.show}
+        user={acceptModal.user}
+        role="admin"
+        onCancel={() => setAcceptModal({ show: false, user: null })}
+        onConfirm={handleAccept}
+      />
     </div>
   );
 };

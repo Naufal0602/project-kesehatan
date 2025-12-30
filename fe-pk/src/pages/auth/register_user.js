@@ -22,6 +22,7 @@ const RegisterPendingStyled = () => {
     email: "",
     password: "",
     lembaga: "",
+    requested_role: "user",
     public_id: "",
   });
 
@@ -127,6 +128,7 @@ const RegisterPendingStyled = () => {
         kta: "",
         id_tingkatan: "",
         foto: "",
+        requested_role: "user",
         public_id: "",
       });
       setPreviewFoto(null);
@@ -319,6 +321,19 @@ const RegisterPendingStyled = () => {
               className="w-full border rounded p-2"
               required
             />
+          </div>
+          <div className="mt-4">
+            <label className="block text-gray-700">Daftar Sebagai</label>
+            <select
+              name="requested_role"
+              value={formData.requested_role}
+              onChange={handleChange}
+              className="w-full border rounded p-2"
+              required
+            >
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
           </div>
 
           {error && <p className="text-red-500">{error}</p>}

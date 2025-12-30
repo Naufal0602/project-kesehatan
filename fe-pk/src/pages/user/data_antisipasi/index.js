@@ -72,8 +72,9 @@ const IndexAntisipasi = () => {
 
       <div className="lg:ml-64 mt-14 p-8 w-full">
         {/* Greeting */}
-
-        <div className="mb-6 flex justify-center">
+        <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+        <h2 className="text-2xl text-green-500 font-bold mb-6">Daftar Jenis Penyakit</h2>
+        <div className="mb-6 flex justify-beetween flex-col md:flex-row md:items-center md:space-y-0 space-y-4 md:space-x-4">
           <input
             type="text"
             placeholder="Cari jenis penyakit dan tips..."
@@ -81,9 +82,7 @@ const IndexAntisipasi = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full md:w-1/2 px-4 py-2 border rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
           />
-        </div>
 
-        <div className="mb-6 flex justify-center">
           <div className="w-full md:w-1/2">
             <Select
               options={dropdownOptions}
@@ -98,8 +97,9 @@ const IndexAntisipasi = () => {
             />
           </div>
         </div>
+        </div>
 
-        <h2 className="text-2xl font-bold mb-6">Daftar Jenis Penyakit</h2>
+        
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <AnimatePresence>

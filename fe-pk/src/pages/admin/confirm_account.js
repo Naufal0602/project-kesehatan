@@ -9,68 +9,120 @@ import {
   serverTimestamp,
   getDoc,
 } from "firebase/firestore";
-import { db } from "../../services/firebaseConfig";
+import { auth, db } from "../../services/firebaseConfig";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { CheckCircle, XCircle, Loader2, Eye, X } from "lucide-react";
-import emailjs from "@emailjs/browser";
+import { Loader2, X, Eye, CheckCircle, XCircle } from "lucide-react";
 import FullScreenLoader from "../../components/FullScreenLoader";
-import { secondaryAuth } from "../../services/firebaseConfig";
+import ConfirmModal from "../../components/ConfirmModal";
+import AcceptAccountModal from "../../components/AcceptAccountModal";
+import DataTable from "react-data-table-component";
+import emailjs from "@emailjs/browser";
 
 const ConfirmAccount = () => {
   const [pendingUsers, setPendingUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [search, setSearch] = useState("");
   const [loader, setLoader] = useState({
     visible: false,
     status: "loading",
     message: "",
   });
+  const [confirmModal, setConfirmModal] = useState({
+    show: false,
+    type: "", // "accept" | "reject"
+    user: null,
+  });
+  const [acceptModal, setAcceptModal] = useState({
+    show: false,
+    user: null,
+  });
 
-  const showLoader = (status, message) => {
-    setLoader({
-      visible: true,
-      status: status,
-      message: message,
-    });
-  };
+  const columns = [
+    {
+      name: "Nama",
+      selector: (row) => row.nama,
+      sortable: true,
+    },
+    {
+      name: "Email",
+      selector: (row) => row.email,
+      sortable: true,
+    },
+    {
+      name: "Lembaga",
+      selector: (row) => row.lembaga,
+    },
+    {
+      name: "Tingkatan",
+      selector: (row) => row.nama_tingkatan,
+    },
+    {
+      name: "Aksi",
+      cell: (row) => (
+        <div className="flex gap-2 justify-center">
+          {/* DETAIL */}
+          <button
+            onClick={() => handleView(row)}
+            className="flex items-center gap-1 bg-blue-500 hover:bg-blue-600 text-white px-2 py-2 md:px-3 md:py-1 rounded"
+            title="Detail"
+          >
+            <Eye size={18} />
+          </button>
 
-  // 🔹 Ambil data pending_users + DEBUG
+          {/* TERIMA */}
+          <button
+            onClick={() => setAcceptModal({ show: true, user: row })}
+            className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white px-2 py-2 md:px-3 md:py-1 rounded"
+            title="Terima"
+          >
+            <CheckCircle size={18} />
+          </button>
+
+          {/* TOLAK */}
+          <button
+            onClick={() =>
+              setConfirmModal({ show: true, type: "reject", user: row })
+            }
+            className="flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white px-2 py-2 md:px-3 md:py-1 rounded"
+            title="Tolak"
+          >
+            <XCircle size={18} />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+  // 🔹 Ambil data pending_users
   useEffect(() => {
     const fetchPendingUsers = async () => {
       setLoading(true);
       try {
         const querySnapshot = await getDocs(collection(db, "pending_users"));
-        console.log(
-          "DEBUG: raw pending_users:",
-          querySnapshot.docs.map((d) => d.data())
-        );
-
         const users = await Promise.all(
-          querySnapshot.docs.map(async (docSnap) => {
-            const data = docSnap.data();
-
-            console.log("DEBUG: Data user ditemukan:", data);
-
-            let nama_tingkatan = "-";
-            if (data.id_tingkatan) {
-              const tingkatanDoc = await getDoc(
-                doc(db, "tingkatan", data.id_tingkatan)
-              );
-              if (tingkatanDoc.exists()) {
-                nama_tingkatan = tingkatanDoc.data().nama_tingkatan;
-              }
-            }
-
-            return {
+          querySnapshot.docs
+            .map((docSnap) => ({
               id: docSnap.id,
-              ...data,
-              nama_tingkatan,
-            };
-          })
+              ...docSnap.data(),
+            }))
+            // 🔥 FILTER WAJIB
+            .filter((u) => u.requested_role === "user")
+            .map(async (data) => {
+              let nama_tingkatan = "-";
+              if (data.id_tingkatan) {
+                const tingkatanDoc = await getDoc(
+                  doc(db, "tingkatan", data.id_tingkatan)
+                );
+                if (tingkatanDoc.exists()) {
+                  nama_tingkatan = tingkatanDoc.data().nama_tingkatan;
+                }
+              }
+              return { ...data, nama_tingkatan };
+            })
         );
 
-        console.log("DEBUG: pendingUsers setelah diproses:", users);
         setPendingUsers(users);
       } catch (err) {
         console.error("Gagal mengambil data pending_users:", err);
@@ -82,29 +134,19 @@ const ConfirmAccount = () => {
     fetchPendingUsers();
   }, []);
 
-  // 👁️ Lihat detail
-  const handleView = (user) => {
-    console.log("DEBUG: Klik lihat detail. User =", user);
-    setSelectedUser(user);
-    setShowModal(true);
-  };
-
   // ✅ Fungsi Terima
-  const handleAccept = async (user) => {
-    console.log("DEBUG: handleAccept dijalankan. User =", user);
-
-    if (!window.confirm(`Terima akun ${user.nama}?`)) return;
-
-    showLoader("loading", "Memproses penerimaan akun...");
+  const handleAccept = async () => {
+    const user = acceptModal.user;
+    if (!user) return;
+    setAcceptModal({ show: false, user: null });
+    showLoader("loading", "Menyetujui akun user...");
 
     try {
       const userCredential = await createUserWithEmailAndPassword(
-        secondaryAuth,
+        auth,
         user.email,
         user.password
       );
-
-      console.log("DEBUG: Firebase Auth created:", userCredential.user);
 
       const createdUser = userCredential.user;
 
@@ -112,47 +154,30 @@ const ConfirmAccount = () => {
         nama: user.nama,
         email: user.email,
         lembaga: user.lembaga,
-        role: "user",
+        role: "user", 
         created_at: serverTimestamp(),
-      });
-
-      const { password, id, status, ...userWithoutPassword } = user;
-      await setDoc(doc(db, "data_spesifik", createdUser.uid), {
-        ...userWithoutPassword,
-        user_id: createdUser.uid,
-        created_at: serverTimestamp(),
-        updated_at: serverTimestamp(),
       });
 
       await deleteDoc(doc(db, "pending_users", user.id));
-
-      console.log("DEBUG: User berhasil dihapus dari pending_users");
-
-      setPendingUsers((prev) => prev.filter((u) => u.id !== user.id));
-      setShowModal(false);
-      setSelectedUser(null);
-
-      console.log("DEBUG: Mengirim email diterima...");
       await sendEmail(
-        user.email,
-        user.nama,
-        "Akun Anda telah diterima. Silakan login.",
-        true
-      );
-
+      user.email,
+      user.nama,
+      "Akun user Anda telah diterima. Silakan login.",
+      true
+    );
       showLoader("success");
-    } catch (error) {
-      console.error("ERROR saat menerima akun:", error);
-      showLoader("error", "Terjadi kesalahan saat memproses.");
+    } catch (err) {
+      console.error(err);
+      showLoader("error", "Gagal menyetujui akun");
     }
   };
 
-  const handleReject = async (user) => {
-    console.log("DEBUG: handleReject dijalankan. User =", user);
-
-    if (!window.confirm(`Tolak akun ${user.nama}?`)) return;
-
-    showLoader("loading", "Memproses penolakan akun...");
+  // ❌ Fungsi Tolak
+  const handleReject = async () => {
+    const user = confirmModal.user;
+    if (!user) return;
+    setConfirmModal({ show: false, type: "", user: null });
+    showLoader("loading", "Menolak akun user...");
 
     try {
       await fetch("https://project-kesehatan.vercel.app/api/delete", {
@@ -160,43 +185,25 @@ const ConfirmAccount = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           public_id: user.public_id,
-          resource_type: user.resource_type || "auto",
+          resource_type: user.resource_type,
         }),
       });
 
-      console.log("DEBUG: Cloudinary delete response OK");
-
       await deleteDoc(doc(db, "pending_users", user.id));
-      console.log("DEBUG: User dihapus dari pending_users");
-
-      setPendingUsers((prev) => prev.filter((u) => u.id !== user.id));
-      setShowModal(false);
-      setSelectedUser(null);
-
-      console.log("DEBUG: Mengirim email penolakan...");
       await sendEmail(
-        user.email,
-        user.nama,
-        "Maaf, pendaftaran Anda ditolak.",
-        false
-      );
-
+      user.email,
+      user.nama,
+      "Maaf, pendaftaran akun user Anda ditolak.",
+      false
+    );
       showLoader("success");
     } catch (err) {
-      console.error("Gagal menolak akun:", err);
-      showLoader("error", "Gagal menolak akun.");
+      console.error(err);
+      showLoader("error", "Gagal menolak akun");
     }
   };
 
-  // 📧 Fungsi kirim email + DEBUG
   const sendEmail = (toEmail, toName, message, accepted = false) => {
-    console.log("DEBUG: Mengirim Email:", {
-      toEmail,
-      toName,
-      message,
-      accepted,
-    });
-
     return emailjs.send(
       "service_dip11ah",
       "template_57sbswo",
@@ -207,14 +214,34 @@ const ConfirmAccount = () => {
         message: message,
         accepted: accepted,
         year: new Date().getFullYear(),
-
-        // ⬇️ Trik untuk menggantikan {{#if}}
         login_button: accepted
           ? `<a href="project-kesehatan-56b4b.web.app/login" class="button">Login Sekarang</a>`
           : "",
       },
       "koKUzXhOxQy0j5CBc"
     );
+  };
+
+  const filteredUsers = pendingUsers.filter((item) => {
+    const keyword = search.toLowerCase();
+    return (
+      item.nama?.toLowerCase().includes(keyword) ||
+      item.email?.toLowerCase().includes(keyword)
+    );
+  });
+
+  const showLoader = (status = "loading", message = "") => {
+    setLoader({
+      visible: true,
+      status,
+      message,
+    });
+  };
+
+  // 👁️ Fungsi Lihat Detail
+  const handleView = (user) => {
+    setSelectedUser(user);
+    setShowModal(true);
   };
 
   return (
@@ -233,6 +260,14 @@ const ConfirmAccount = () => {
           Daftar Akun Pending
         </h1>
 
+        <input
+          type="text"
+          placeholder="Cari nama atau email..."
+          className="border rounded px-4 py-2 mb-4 w-full md:w-1/3"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+
         {loading ? (
           <div className="flex justify-center items-center h-64 text-green-600">
             <Loader2 className="animate-spin w-10 h-10" />
@@ -241,62 +276,14 @@ const ConfirmAccount = () => {
           <p className="text-gray-500 text-center">Tidak ada akun pending.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full bg-white rounded-lg shadow-md">
-              <thead>
-                <tr className="bg-green-100 text-green-700 text-sm md:text-base">
-                  <th className="py-3 px-4 text-left">Nama</th>
-                  <th className="py-3 px-4 text-left">Email</th>
-                  <th className="py-3 px-4 text-left hidden sm:table-cell">
-                    Lembaga
-                  </th>
-                  <th className="py-3 px-4 text-left hidden md:table-cell capitalize">
-                    Tingkatan
-                  </th>
-
-                  <th className="py-3 px-4 text-center">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingUsers.map((user) => (
-                  <tr
-                    key={user.id}
-                    className="border-b hover:bg-gray-50 text-sm md:text-base"
-                  >
-                    <td className="py-3 px-4">{user.nama}</td>
-                    <td className="py-3 px-4">{user.email}</td>
-                    <td className="py-3 px-4 hidden sm:table-cell">
-                      {user.lembaga}
-                    </td>
-                    <td className="py-3 px-4 hidden md:table-cell capitalize">
-                      {user.nama_tingkatan || "-"}
-                    </td>
-                    <td className="py-3 px-4 flex flex-col sm:flex-row justify-center items-center gap-2">
-                      <button
-                        onClick={() => handleView(user)}
-                        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-md flex items-center gap-1 w-full sm:w-auto justify-center"
-                      >
-                        <Eye size={18} />
-                        Proses
-                      </button>
-                      <button
-                        onClick={() => handleAccept(user)}
-                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-md flex items-center gap-1 w-full sm:w-auto justify-center"
-                      >
-                        <CheckCircle size={18} />
-                        Terima
-                      </button>
-                      <button
-                        onClick={() => handleReject(user)}
-                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-md flex items-center gap-1 w-full sm:w-auto justify-center"
-                      >
-                        <XCircle size={18} />
-                        Tolak
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <DataTable
+              columns={columns}
+              data={filteredUsers}
+              pagination
+              highlightOnHover
+              responsive
+              progressPending={loading}
+            />
           </div>
         )}
       </div>
@@ -372,6 +359,27 @@ const ConfirmAccount = () => {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        show={confirmModal.show}
+        title={confirmModal.type === "accept" ? "Terima Akun" : "Tolak Akun"}
+        message={
+          confirmModal.type === "accept"
+            ? `Apakah kamu yakin ingin menerima akun ${confirmModal.user?.nama}?`
+            : `Apakah kamu yakin ingin menolak akun ${confirmModal.user?.nama}?`
+        }
+        onCancel={() => setConfirmModal({ show: false, type: "", user: null })}
+        onConfirm={() => {
+          confirmModal.type === "accept" ? handleAccept() : handleReject();
+        }}
+      />
+      <AcceptAccountModal
+        show={acceptModal.show}
+        user={acceptModal.user}
+        role="user"
+        onCancel={() => setAcceptModal({ show: false, user: null })}
+        onConfirm={handleAccept}
+      />
     </div>
   );
 };
