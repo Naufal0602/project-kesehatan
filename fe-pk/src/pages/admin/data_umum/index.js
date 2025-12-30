@@ -49,6 +49,7 @@ const DataUmumAdmin = () => {
     );
   };
 
+
   const handleDeleteSelected = async () => {
     if (selectedFiles.length === 0) return;
 
@@ -164,10 +165,6 @@ const DataUmumAdmin = () => {
     fetchData();
   }, []);
 
-  // -------------------------
-  // Upload helper: kirim file ke backend (/upload)
-  // backend mengembalikan { url, public_id, resource_type, format }
-  // -------------------------
   const uploadFile = async (file) => {
     const form = new FormData();
     form.append("file", file);
@@ -392,34 +389,61 @@ const DataUmumAdmin = () => {
   };
 
   // 🔹 Fungsi download seperti di user
-  const handleDownload = async (file) => {
-    if (!file?.file_url) {
-      alert("File tidak ditemukan.");
-      return;
-    }
+const handleDownload = async (file) => {
+  if (!file?.file_url) {
+    alert("File tidak ditemukan.");
+    return;
+  }
 
+  // 👉 JIKA ANDROID WEBVIEW
+  if (typeof window.AndroidInterface !== "undefined") {
     try {
-      const ext = getFileExtension(file.file_url) || "bin";
-      const namaFile = file.nama_file?.includes(".")
-        ? file.nama_file
-        : `${file.nama_file || "file_unduhan"}.${ext}`;
-
       const response = await fetch(file.file_url);
       const blob = await response.blob();
 
-      const urlBlob = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = urlBlob;
-      a.download = namaFile;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(urlBlob);
-    } catch (err) {
-      console.error("Gagal mengunduh file:", err);
-      alert("Terjadi kesalahan saat mengunduh file.");
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64data = reader.result;
+        const namaFile =
+          file.nama_file?.includes(".")
+            ? file.nama_file
+            : "file_unduhan.pdf";
+
+        // PANGGIL ANDROID
+        window.AndroidInterface.savePDF(base64data, namaFile);
+      };
+      reader.readAsDataURL(blob);
+    } catch (e) {
+      alert("Gagal download di Android");
+      console.error(e);
     }
-  };
+    return;
+  }
+
+  // 👉 JIKA WEB BROWSER BIASA
+  try {
+    const ext = getFileExtension(file.file_url) || "bin";
+    const namaFile = file.nama_file?.includes(".")
+      ? file.nama_file
+      : `${file.nama_file || "file_unduhan"}.${ext}`;
+
+    const response = await fetch(file.file_url);
+    const blob = await response.blob();
+
+    const urlBlob = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = urlBlob;
+    a.download = namaFile;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(urlBlob);
+  } catch (err) {
+    console.error("Gagal mengunduh file:", err);
+    alert("Terjadi kesalahan saat mengunduh file.");
+  }
+};
+
 
   return (
     <div className="flex min-h-screen bg-gray-50">
