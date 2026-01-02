@@ -14,6 +14,11 @@ import { Loader2, Info, Trash2, Search } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+const isAndroidWebView = () =>
+  typeof window !== "undefined" && window.AndroidInterface;
+
+let exporting = false;
+
 const DaftarAccount = () => {
   const [akunList, setAkunList] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -184,66 +189,83 @@ const DaftarAccount = () => {
     ...new Set(akunList.map((a) => a.nama_tingkatan).filter(Boolean)),
   ];
   const handleExportPDF = () => {
-    const doc = new jsPDF("landscape");
+    if (exporting) return;
+    exporting = true;
 
-    // Filter data
-    let dataToExport = akunList;
+    try {
+      const doc = new jsPDF("landscape");
 
-    if (selectedTingkatan !== "all") {
-      dataToExport = akunList.filter(
-        (a) => a.nama_tingkatan === selectedTingkatan
+      // Filter data
+      let dataToExport = akunList;
+
+      if (selectedTingkatan !== "all") {
+        dataToExport = akunList.filter(
+          (a) => a.nama_tingkatan === selectedTingkatan
+        );
+      }
+
+      if (dataToExport.length === 0) {
+        alert("Data tidak tersedia");
+        exporting = false;
+        return;
+      }
+
+      doc.setFontSize(14);
+      doc.text(
+        selectedTingkatan === "all"
+          ? "Laporan Data Seluruh User"
+          : `Laporan Data User - Tingkatan ${selectedTingkatan}`,
+        14,
+        15
       );
-    }
 
-    if (dataToExport.length === 0) {
-      alert("Data tidak tersedia");
-      return;
-    }
-
-    doc.setFontSize(14);
-    doc.text(
-      selectedTingkatan === "all"
-        ? "Laporan Data Seluruh User"
-        : `Laporan Data User - Tingkatan ${selectedTingkatan}`,
-      14,
-      15
-    );
-
-    autoTable(doc, {
-      startY: 25,
-      head: [
-        [
-          "Nama",
-          "Email",
-          "Lembaga",
-          "Tingkatan",
-          "LSPSN",
-          "KTA",
-          "Tanggal Lahir",
-          "Role",
+      autoTable(doc, {
+        startY: 25,
+        head: [
+          [
+            "Nama",
+            "Email",
+            "Lembaga",
+            "Tingkatan",
+            "LSPSN",
+            "KTA",
+            "Tanggal Lahir",
+            "Role",
+          ],
         ],
-      ],
-      body: dataToExport.map((u) => [
-        u.nama || "-",
-        u.email || "-",
-        u.lembaga || "-",
-        u.nama_tingkatan || "-",
-        u.lspsn || "-",
-        u.kta || "-",
-        u.ttl || "-",
-        u.role || "-",
-      ]),
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [34, 197, 94] }, // hijau
-    });
+        body: dataToExport.map((u) => [
+          u.nama || "-",
+          u.email || "-",
+          u.lembaga || "-",
+          u.nama_tingkatan || "-",
+          u.lspsn || "-",
+          u.kta || "-",
+          u.ttl || "-",
+          u.role || "-",
+        ]),
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [34, 197, 94] },
+      });
 
-    doc.save(
-      selectedTingkatan === "all"
-        ? "data-user-semua.pdf"
-        : `data-user-tingkatan-${selectedTingkatan}.pdf`
-    );
+      const fileName =
+        selectedTingkatan === "all"
+          ? "data-user-semua.pdf"
+          : `data-user-tingkatan-${selectedTingkatan}.pdf`;
 
-    setShowExportModal(false);
+      if (isAndroidWebView()) {
+        const base64 = doc.output("base64");
+        window.AndroidInterface.savePDF(base64, fileName);
+      } else {
+        doc.save(fileName);
+      }
+    } catch (e) {
+      console.error("Export PDF error:", e);
+    } finally {
+      setTimeout(() => {
+        exporting = false;
+        setShowExportModal(false);
+      }, 1500);
+    }
   };
 
   return (
@@ -259,30 +281,30 @@ const DaftarAccount = () => {
         </h2>
 
         <div className="bg-white p-4 rounded-lg shadow-md flex flex-col gap-6">
-         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-          {/* 🔍 Search bar */}
-          <div
-            className={`flex items-center border justify-right transition-all duration-300 rounded-lg px-3 py-1 w-full md:w-64 ${
-              searchTerm
-                ? "border-green-500 shadow-md"
-                : "border-gray-300 hover:border-green-400"
-            }`}
-          >
-            <Search
-              className={`transition-colors ${
-                searchTerm ? "text-green-500" : "text-gray-400"
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+            {/* 🔍 Search bar */}
+            <div
+              className={`flex items-center border justify-right transition-all duration-300 rounded-lg px-3 py-1 w-full md:w-64 ${
+                searchTerm
+                  ? "border-green-500 shadow-md"
+                  : "border-gray-300 hover:border-green-400"
               }`}
-            />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 focus:outline-none text-sm sm:text-base bg-transparent"
-              placeholder="Cari Nama Akun..."
-            />
-          </div>
+            >
+              <Search
+                className={`transition-colors ${
+                  searchTerm ? "text-green-500" : "text-gray-400"
+                }`}
+              />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-4 focus:outline-none text-sm sm:text-base bg-transparent"
+                placeholder="Cari Nama Akun..."
+              />
+            </div>
 
-           <button
+            <button
               onClick={() => setShowExportModal(true)}
               className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md w-fit"
             >

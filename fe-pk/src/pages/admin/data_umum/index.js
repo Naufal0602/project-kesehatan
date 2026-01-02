@@ -387,45 +387,29 @@ const DataUmumAdmin = () => {
     return match ? match[1].toLowerCase() : "";
   };
 
-  // 🔹 Fungsi download seperti di user
-const handleDownload = async (file) => {
+ const handleDownload = async (file) => {
   if (!file?.file_url) {
     alert("File tidak ditemukan.");
     return;
   }
 
-  // 👉 JIKA ANDROID WEBVIEW
-  if (typeof window.AndroidInterface !== "undefined") {
-    try {
-      const response = await fetch(file.file_url);
-      const blob = await response.blob();
+  const ext = getFileExtension(file.file_url) || "";
+  const namaFile =
+    file.nama_file && file.nama_file.includes(".")
+      ? file.nama_file
+      : `${file.nama_file || "file"}${ext ? "." + ext : ""}`;
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64data = reader.result;
-        const namaFile =
-          file.nama_file?.includes(".")
-            ? file.nama_file
-            : "file_tugas.pdf";
-
-        // PANGGIL ANDROID
-        window.AndroidInterface.savePDF(base64data, namaFile);
-      };
-      reader.readAsDataURL(blob);
-    } catch (e) {
-      alert("Gagal download di Android");
-      console.error(e);
-    }
+  // 📱 ANDROID WEBVIEW
+  if (window.AndroidInterface && window.AndroidInterface.downloadFile) {
+    window.AndroidInterface.downloadFile(
+      file.file_url,
+      namaFile
+    );
     return;
   }
 
-  // 👉 JIKA WEB BROWSER BIASA
+  // 🌐 WEB BROWSER
   try {
-    const ext = getFileExtension(file.file_url) || "bin";
-    const namaFile = file.nama_file?.includes(".")
-      ? file.nama_file
-      : `${file.nama_file || "file_unduhan"}.${ext}`;
-
     const response = await fetch(file.file_url);
     const blob = await response.blob();
 
@@ -442,6 +426,7 @@ const handleDownload = async (file) => {
     alert("Terjadi kesalahan saat mengunduh file.");
   }
 };
+
 
 
   return (

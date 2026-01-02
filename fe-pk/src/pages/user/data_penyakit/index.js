@@ -20,8 +20,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-
-
+import { toast } from "sonner";
 
 export default function UserDataPenyakit() {
   const [user, setUser] = useState(null);
@@ -37,7 +36,7 @@ export default function UserDataPenyakit() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(null); // 0 - 11
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear()); 
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   // modal states
   const [showAddModal, setShowAddModal] = useState(false);
@@ -174,7 +173,9 @@ export default function UserDataPenyakit() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedJenis || !hasilLab || !bulan || !namaPenyakit) {
-      alert("Harap isi semua field terlebih dahulu.");
+     toast.warning("Data belum lengkap", {
+      description: "Harap isi semua field terlebih dahulu.",
+    });
       return;
     }
     try {
@@ -344,59 +345,88 @@ export default function UserDataPenyakit() {
   });
 
   const handleExportPDF = () => {
-  if (filteredData.length === 0) {
-    alert("Tidak ada data untuk diexport");
-    return;
-  }
+    if (filteredData.length === 0) {
+      toast.warning("Tidak ada data untuk diexport", {
+        description: "Silakan cek filter bulan, tahun, atau pencarian.",
+      });
+      return;
+    }
 
-  const docPdf = new jsPDF({
-    orientation: "portrait",
-    unit: "pt",
-    format: "a4",
-  });
+    const docPdf = new jsPDF({
+      orientation: "portrait",
+      unit: "pt",
+      format: "a4",
+    });
 
-  const today = new Date();
-  const tanggalCetak = today.toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
+    const today = new Date();
+    const tanggalCetak = today.toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
 
-  docPdf.setFontSize(16);
-  docPdf.text("LAPORAN DATA PENYAKIT", 40, 40);
+    docPdf.setFontSize(16);
+    docPdf.text("LAPORAN DATA PENYAKIT", 40, 40);
 
-  docPdf.setFontSize(11);
-  docPdf.text(`Tahun: ${selectedYear}`, 40, 60);
-  docPdf.text(`Tanggal Cetak: ${tanggalCetak}`, 40, 75);
+    docPdf.setFontSize(11);
+    docPdf.text(`Tahun: ${selectedYear}`, 40, 60);
+    docPdf.text(`Tanggal Cetak: ${tanggalCetak}`, 40, 75);
 
-  autoTable(docPdf, {
-    startY: 100,
-    head: [[
-      "No",
-      "Nama Penyakit",
-      "Jenis",
-      "Hasil Lab",
-      "Status",
-      "Bulan"
-    ]],
-    body: filteredData.map((row, i) => [
-      i + 1,
-      row.nama_penyakit,
-      row.nama_jenis_penyakit,
-      row.hasil_lab,
-      row.status,
-      new Date(row.bulan.seconds * 1000).toLocaleDateString("id-ID", {
-        month: "long",
-        year: "numeric",
-      }),
-    ]),
-    styles: { fontSize: 10 },
-    headStyles: { fillColor: [22, 163, 74], textColor: 255 },
-  });
+    autoTable(docPdf, {
+      startY: 100,
+      head: [["No", "Nama Penyakit", "Jenis", "Hasil Lab", "Status", "Bulan"]],
+      body: filteredData.map((row, i) => [
+        i + 1,
+        row.nama_penyakit,
+        row.nama_jenis_penyakit,
+        row.hasil_lab,
+        row.status,
+        new Date(row.bulan.seconds * 1000).toLocaleDateString("id-ID", {
+          month: "long",
+          year: "numeric",
+        }),
+      ]),
+      styles: { fontSize: 10 },
+      headStyles: { fillColor: [22, 163, 74], textColor: 255 },
+    });
 
-  docPdf.save(`laporan_data_penyakit_${selectedYear}.pdf`);
-};
+    const fileDate = today.toISOString().slice(0, 19).replace(/:/g, "-");
+    const fileName = `laporan_data_penyakit_${selectedYear}_${fileDate}.pdf`;
 
+    savePDFUniversal(docPdf, fileName);
+
+    toast.success("PDF berhasil diexport", {
+      description: `Laporan tahun ${selectedYear}`,
+    });
+  };
+
+  const savePDFUniversal = (docPdf, fileName) => {
+    const arrayBuffer = docPdf.output("arraybuffer");
+
+    // ✅ Android WebView
+    if (window.AndroidInterface && window.AndroidInterface.savePDF) {
+      const uint8Array = new Uint8Array(arrayBuffer);
+      let binary = "";
+      const len = uint8Array.byteLength;
+
+      for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(uint8Array[i]);
+      }
+
+      const base64 = window.btoa(binary);
+      window.AndroidInterface.savePDF(base64, fileName);
+      return;
+    }
+
+    // ✅ Web browser biasa
+    const blob = new Blob([arrayBuffer], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -488,14 +518,14 @@ export default function UserDataPenyakit() {
                 Belum ada data penyakit.
               </p>
             ) : (
-                <DataTable
-                  columns={columns}
-                  data={filteredData}
-                  pagination
-                  highlightOnHover
-                  striped
-                  responsive
-                />
+              <DataTable
+                columns={columns}
+                data={filteredData}
+                pagination
+                highlightOnHover
+                striped
+                responsive
+              />
             )}
           </div>
         </div>

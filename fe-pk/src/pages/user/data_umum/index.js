@@ -4,6 +4,7 @@ import DataTable from "react-data-table-component";
 import { db } from "../../../services/firebaseConfig";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { Loader2, Search, Info, Eye, Download, X } from "lucide-react";
+import { toast } from "sonner";
 
 const UserDataUmum = () => {
   const [dataUmum, setDataUmum] = useState([]);
@@ -72,33 +73,21 @@ const UserDataUmum = () => {
   // 🔹 Fungsi download file dengan ekstensi benar
   const handleDownload = async (file) => {
     if (!file?.file_url) {
-      alert("File tidak ditemukan.");
+      toast.warning("File tidak ditemukan");
       return;
     }
 
-    try {
-      const ext = getFileExtension(file.file_url) || "bin";
-      const namaFile = file.nama_file?.includes(".")
-        ? file.nama_file
-        : `${file.nama_file || "file_unduhan"}.${ext}`;
+    const ext = getFileExtension(file.file_url) || "bin";
 
-      // Ambil file blob dari URL (agar bisa pakai ekstensi benar)
-      const response = await fetch(file.file_url);
-      const blob = await response.blob();
+    const namaFile = file.nama_file?.includes(".")
+      ? file.nama_file
+      : `${file.nama_file || "file_unduhan"}.${ext}`;
 
-      // Buat link untuk unduhan manual
-      const urlBlob = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = urlBlob;
-      a.download = namaFile;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(urlBlob);
-    } catch (err) {
-      console.error("Gagal mengunduh file:", err);
-      alert("Terjadi kesalahan saat mengunduh file.");
-    }
+    await downloadUniversalFile(file.file_url, namaFile);
+
+    toast.success("Unduhan dimulai", {
+      description: namaFile,
+    });
   };
 
   // 🔹 Kolom tabel
@@ -131,6 +120,32 @@ const UserDataUmum = () => {
     },
   ];
 
+  const downloadUniversalFile = async (fileUrl, fileName) => {
+    try {
+      // 🔹 Android WebView
+      if (window.AndroidInterface && window.AndroidInterface.saveFileFromUrl) {
+        window.AndroidInterface.saveFileFromUrl(fileUrl, fileName);
+        return;
+      }
+
+      // 🔹 Web browser biasa
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
+
+      const urlBlob = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = urlBlob;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(urlBlob);
+    } catch (err) {
+      console.error("Gagal mengunduh file:", err);
+      toast.error("Gagal mengunduh file");
+    }
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-100">
       <div className="fixed top-0 left-0 z-50">
@@ -140,7 +155,9 @@ const UserDataUmum = () => {
       <div className="lg:ml-64 mt-14 p-6 w-full">
         <div className="bg-white p-6 rounded-lg shadow-md">
           <div className="flex flex-col md:flex-row justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold mb-4 md:mb-0 text-green-600">Data Umum</h1>
+            <h1 className="text-2xl font-bold mb-4 md:mb-0 text-green-600">
+              Data Umum
+            </h1>
 
             {/* 🔹 Filter tanggal */}
             <div className="flex flex-wrap sm:justify-center items-center gap-2">

@@ -14,7 +14,7 @@ import { Eye, FileText } from "lucide-react";
 import FullScreenLoader from "../../../components/FullScreenLoader";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-
+import { toast } from "sonner";
 
 const DetailModal = ({ data, onClose }) => {
   const fields = [
@@ -230,6 +230,14 @@ const DataMateriUser = () => {
 
   const generatePDF = useCallback(
     async (rows) => {
+      if (!rows.length) {
+        toast.warning("Tidak ada data untuk dicetak", {
+          description: "Silakan cek filter tanggal atau data hasil tes.",
+        });
+       setPrinting(false);
+        return;
+      }
+
       setPrinting(true);
 
       try {
@@ -288,47 +296,47 @@ const DataMateriUser = () => {
         // Nama file
         const fileDate = today.toISOString().slice(0, 19).replace(/:/g, "-");
 
-       savePDFUniversal(docPdf, `hasil_tes_${userName}_${fileDate}.pdf`);
+        savePDFUniversal(docPdf, `hasil_tes_${userName}_${fileDate}.pdf`);
       } finally {
+        toast.success("PDF berhasil dibuat");
         setPrinting(false);
       }
     },
     [user]
   );
 
-const savePDFUniversal = (docPdf, fileName) => {
-  const arrayBuffer = docPdf.output("arraybuffer");
+  const savePDFUniversal = (docPdf, fileName) => {
+    const arrayBuffer = docPdf.output("arraybuffer");
 
-  // Jika Android WebView
-  if (window.AndroidInterface && window.AndroidInterface.savePDF) {
-    const uint8Array = new Uint8Array(arrayBuffer);
+    // Jika Android WebView
+    if (window.AndroidInterface && window.AndroidInterface.savePDF) {
+      const uint8Array = new Uint8Array(arrayBuffer);
 
-    let binary = "";
-    const len = uint8Array.byteLength;
+      let binary = "";
+      const len = uint8Array.byteLength;
 
-    // Ubah byte → binary string aman
-    for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(uint8Array[i]);
+      // Ubah byte → binary string aman
+      for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(uint8Array[i]);
+      }
+
+      // encode aman
+      const base64 = window.btoa(binary);
+
+      // kirim ke Android
+      window.AndroidInterface.savePDF(base64, fileName);
+      return;
     }
 
-    // encode aman
-    const base64 = window.btoa(binary);
-
-    // kirim ke Android
-    window.AndroidInterface.savePDF(base64, fileName);
-    return;
-  }
-
-  // Jika bukan Android → download biasa
-  const blob = new Blob([arrayBuffer], { type: "application/pdf" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = fileName;
-  a.click();
-  URL.revokeObjectURL(url);
-};
-
+    // Jika bukan Android → download biasa
+    const blob = new Blob([arrayBuffer], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const handlePrintAll = useCallback(async () => {
     setShowPrintModal(false);

@@ -7,6 +7,12 @@ import { collection, getDocs } from "firebase/firestore";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+const isAndroidWebView = () => {
+  return typeof window !== "undefined" && window.AndroidInterface;
+};
+
+let exportingPDF = false;
+
 export default function AdminDataPenyakit() {
   const [data, setData] = useState([]);
   const [jenisList, setJenisList] = useState([]);
@@ -123,32 +129,55 @@ export default function AdminDataPenyakit() {
   ];
 
   const generatePdf = (title, tableData) => {
-    const doc = new jsPDF("p", "mm", "a4");
+    if (exportingPDF) return;
+    exportingPDF = true;
 
-    doc.setFontSize(16);
-    doc.text(title, 14, 15);
+    try {
+      const doc = new jsPDF("p", "mm", "a4");
 
-    autoTable(doc, {
-      startY: 22,
-      head: [
-        [
-          "No",
-          "Nama User",
-          "Jenis Penyakit",
-          "Nama Penyakit",
-          "Status",
-          "Bulan",
+      doc.setFontSize(16);
+      doc.text(title, 14, 15);
+
+      autoTable(doc, {
+        startY: 22,
+        head: [
+          [
+            "No",
+            "Nama User",
+            "Jenis Penyakit",
+            "Nama Penyakit",
+            "Status",
+            "Bulan",
+          ],
         ],
-      ],
-      body: tableData,
-      styles: { fontSize: 10 },
-      headStyles: {
-        fillColor: [34, 139, 34],
-        textColor: 255,
-      },
-    });
+        body: tableData,
+        styles: { fontSize: 10 },
+        headStyles: {
+          fillColor: [34, 139, 34],
+          textColor: 255,
+        },
+      });
 
-    doc.save(`${title}.pdf`);
+      const safeTitle = title.replace(/[^a-zA-Z0-9]/g, "_");
+      const today = new Date().toISOString().split("T")[0];
+      const fileName = `${safeTitle}_${today}.pdf`;
+
+      // 🔥 ANDROID WEBVIEW
+      if (isAndroidWebView()) {
+        const base64 = doc.output("base64"); // ⛔ BUKAN datauristring
+        window.AndroidInterface.savePDF(base64, fileName);
+      } else {
+        // 🌐 BROWSER NORMAL
+        doc.save(fileName);
+      }
+    } catch (e) {
+      console.error("PDF ERROR:", e);
+    } finally {
+      // kasih jeda biar WebView gak spam
+      setTimeout(() => {
+        exportingPDF = false;
+      }, 1500);
+    }
   };
 
   const exportPdfAll = () => {
@@ -213,12 +242,12 @@ export default function AdminDataPenyakit() {
       <div className="lg:ml-64 mt-16 p-4 md:p-6 w-full overflow-x-hidden">
         <div className="flex flex-col md:flex-row md:justify-between text-green-600 bg-white p-4 md:items-center mb-6 gap-4">
           <h1 className="text-2xl">Data Penyakit Semua User</h1>
-            <button
-              onClick={() => setShowExportModal(true)}
-              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-            >
-              Export PDF
-            </button>
+          <button
+            onClick={() => setShowExportModal(true)}
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+          >
+            Export PDF
+          </button>
         </div>
 
         {/* Filter Section */}

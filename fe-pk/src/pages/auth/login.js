@@ -3,6 +3,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../../services/firebaseConfig";
 import { doc, getDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -73,35 +74,92 @@ const Login = () => {
   };
 
   return (
-    <div className="flex h-screen">
-      <div className="lg:block hidden w-1/2 h-screen bg-green-600"></div>
-      <div className="lg:w-1/2 w-full h-screen flex flex-col items-center justify-center">
-        <h2 className="text-2xl font-bold mb-8">Login Akun</h2>
-        <form onSubmit={handleLogin} className="flex flex-col gap-4 w-80">
-          <input
-            type="email"
-            placeholder="Email"
-            className="border p-2 rounded focus:border-green-500 focus:ring-2 focus:outline-none transition duration-300"
-            onChange={(e) => setEmail(e.target.value)}
-            value={email}
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            className="border p-2 rounded focus:border-green-500 focus:ring-2 focus:outline-none transition duration-300"
-            onChange={(e) => setPassword(e.target.value)}
-            value={password}
-            required
-          />
-          {error && <p className="text-red-500 text-sm">{error}</p>}
-          <button
-            type="submit"
-            className="bg-green-500 text-white py-2 rounded hover:bg-green-600 focus:ring-2 focus:outline-green-500 transition duration-300"
-          >
-            Login
-          </button>
-        </form>
+    <div className="min-h-screen bg-gray-200 lg:bg-green-900 flex items-center justify-center px-4">
+      <div className="w-full max-w-6xl bg-white lg:bg-green-800 rounded-2xl lg:rounded-3xl overflow-hidden flex flex-col lg:flex-row shadow-2xl">
+        {/* KIRI (DESKTOP SAJA) */}
+        <div className="hidden lg:flex w-1/2 relative bg-white items-center justify-center">
+          <div className="absolute inset-0 bg-white rounded-tr-[200px] rounded-br-[200px]"></div>
+
+          <div className="relative z-10 p-10">
+            <h1 className="font-bold text-green-800 text-xl mb-4">PROKES</h1>
+            <img
+              src="/images/Doctors-bro.svg"
+              alt="Health Illustration"
+              className="w-full h-auto max-w-md"
+            />
+          </div>
+        </div>
+
+        {/* KANAN */}
+        <div className="w-full lg:w-1/2 flex items-center justify-center px-6 py-12 bg-green-800 lg:bg-green-800">
+          <div className="w-full max-w-sm">
+            {/* TITLE */}
+            <h2 className="text-3xl font-semibold mb-6 text-white lg:text-white text-center lg:text-left">
+              Login
+            </h2>
+
+            <form onSubmit={handleLogin} className="space-y-4">
+              <input
+                type="email"
+                placeholder="Email"
+                className="
+              w-full px-4 py-2 rounded-full
+              bg-green-700/40 text-gray-800
+              border border-gray-300
+              focus:ring-2 focus:ring-green-400
+              lg:bg-green-700/40 lg:text-white lg:placeholder-white/70 lg:border-none
+            "
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+
+              <input
+                type="password"
+                placeholder="Password"
+                className="
+              w-full px-4 py-2 rounded-full
+              bg-green-700/40 text-gray-800
+              border border-gray-300
+              focus:ring-2 focus:ring-green-400
+              lg:bg-green-700/40 lg:text-white lg:placeholder-white/70 lg:border-none
+            "
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+
+              <div className="text-sm text-green-600 lg:text-green-200 text-right">
+                <Link to="/reset-password">Lupa password?</Link>
+              </div>
+
+              <button
+                type="submit"
+                className="
+              w-full py-2 rounded-full font-semibold transition
+              bg-green-500 text-white hover:bg-green-600
+              lg:bg-green-400 lg:text-green-900 lg:hover:bg-green-300
+            "
+              >
+                Login
+              </button>
+            </form>
+
+            {error && (
+              <p className="text-red-500 text-sm text-center mt-3">{error}</p>
+            )}
+
+            <p className="text-sm text-center mt-6 text-white lg:text-green-200">
+              Belum punya akun?{" "}
+              <Link
+                to="/register"
+                className="text-green-600 lg:text-white underline"
+              >
+                Daftar
+              </Link>
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

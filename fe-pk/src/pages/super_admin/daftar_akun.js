@@ -17,6 +17,11 @@ import { toast, Toaster } from "sonner";
 import FullScreenLoader from "../../components/FullScreenLoader";
 import { updateDoc } from "firebase/firestore";
 
+const isAndroidWebView = () =>
+  typeof window !== "undefined" && window.AndroidInterface;
+
+let exporting = false;
+
 const DaftarAccount = () => {
   const [akunList, setAkunList] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -241,71 +246,92 @@ const DaftarAccount = () => {
   ];
 
   const handleExportPDF = () => {
-    let dataToExport = [...akunList];
+    if (exporting) return;
+    exporting = true;
 
-    // 🔹 Filter Role
-    if (selectedRole !== "all") {
-      dataToExport = dataToExport.filter(
-        (a) => a.role?.toLowerCase() === selectedRole
+    try {
+      let dataToExport = [...akunList];
+
+      // 🔹 Filter Role
+      if (selectedRole !== "all") {
+        dataToExport = dataToExport.filter(
+          (a) => a.role?.toLowerCase() === selectedRole
+        );
+      }
+
+      // 🔹 Filter Tingkatan
+      if (selectedTingkatan !== "all") {
+        dataToExport = dataToExport.filter(
+          (a) => a.nama_tingkatan === selectedTingkatan
+        );
+      }
+
+      if (dataToExport.length === 0) {
+        toast.error("Data tidak ditemukan", {
+          description: "Coba ubah filter role atau tingkatan",
+        });
+        exporting = false;
+        return;
+      }
+
+      const doc = new jsPDF("landscape");
+
+      doc.setFontSize(14);
+      doc.text(
+        `Laporan Akun (${
+          selectedRole === "all" ? "Semua Role" : selectedRole.toUpperCase()
+        })`,
+        14,
+        15
       );
-    }
 
-    // 🔹 Filter Tingkatan
-    if (selectedTingkatan !== "all") {
-      dataToExport = dataToExport.filter(
-        (a) => a.nama_tingkatan === selectedTingkatan
-      );
-    }
-
-    if (dataToExport.length === 0) {
-      toast.error("Data tidak ditemukan", {
-        description: "Coba ubah filter role atau tingkatan",
-      });
-      return;
-    }
-
-    const doc = new jsPDF("landscape");
-
-    doc.setFontSize(14);
-    doc.text(
-      `Laporan Akun (${
-        selectedRole === "all" ? "Semua Role" : selectedRole.toUpperCase()
-      })`,
-      14,
-      15
-    );
-
-    autoTable(doc, {
-      startY: 25,
-      head: [
-        [
-          "Nama",
-          "Email",
-          "Role",
-          "Lembaga",
-          "Tingkatan",
-          "LSPSN",
-          "KTA",
-          "Tanggal Lahir",
+      autoTable(doc, {
+        startY: 25,
+        head: [
+          [
+            "Nama",
+            "Email",
+            "Role",
+            "Lembaga",
+            "Tingkatan",
+            "LSPSN",
+            "KTA",
+            "Tanggal Lahir",
+          ],
         ],
-      ],
-      body: dataToExport.map((u) => [
-        u.nama || "-",
-        u.email || "-",
-        u.role || "-",
-        u.lembaga || "-",
-        u.nama_tingkatan || "-",
-        u.lspsn || "-",
-        u.kta || "-",
-        u.ttl || "-",
-      ]),
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [34, 197, 94] },
-    });
+        body: dataToExport.map((u) => [
+          u.nama || "-",
+          u.email || "-",
+          u.role || "-",
+          u.lembaga || "-",
+          u.nama_tingkatan || "-",
+          u.lspsn || "-",
+          u.kta || "-",
+          u.ttl || "-",
+        ]),
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [34, 197, 94] },
+      });
 
-    doc.save(`export-${selectedRole}-${selectedTingkatan}.pdf`);
+      const fileName = `export-${selectedRole}-${selectedTingkatan}.pdf`;
 
-    setShowExportModal(false);
+      // 🔥 ANDROID WEBVIEW
+      if (isAndroidWebView()) {
+        const base64 = doc.output("base64");
+        window.AndroidInterface.savePDF(base64, fileName);
+      } else {
+        // 🌐 Browser biasa
+        doc.save(fileName);
+      }
+    } catch (err) {
+      console.error("Export PDF error:", err);
+      toast.error("Gagal export PDF");
+    } finally {
+      setTimeout(() => {
+        exporting = false;
+        setShowExportModal(false);
+      }, 1500);
+    }
   };
 
   return (

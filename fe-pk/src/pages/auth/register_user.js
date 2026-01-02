@@ -7,7 +7,8 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { Camera } from "lucide-react";
-import { useNavigate } from "react-router-dom"; // import useNavigate
+import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 const RegisterPendingStyled = () => {
   const [formData, setFormData] = useState({
     nrp: "",
@@ -79,11 +80,15 @@ const RegisterPendingStyled = () => {
     try {
       let uploadedUrl = formData.foto;
       let publicId = formData.public_id;
+      let resourceType = formData.resource_type || "image";
 
-      // 🟢 Upload foto ke Cloudinary HANYA jika ada file baru
+      // 🟢 Upload ke Cloudinary hanya jika ada foto baru
       if (fotoFile) {
         const formDataUpload = new FormData();
         formDataUpload.append("file", fotoFile);
+
+        formDataUpload.append("upload_preset", "react_unsigned");
+        formDataUpload.append("folder", "react_uploads");
 
         const res = await fetch(
           "https://api.cloudinary.com/v1_1/dmqehg4y5/auto/upload",
@@ -95,26 +100,27 @@ const RegisterPendingStyled = () => {
 
         const data = await res.json();
 
-        if (!data.url || !data.public_id) {
-          throw new Error("Upload gagal: URL/public_id tidak ditemukan");
+        if (!res.ok) {
+          throw new Error(data.error?.message || "Upload foto gagal");
         }
 
-        uploadedUrl = data.url;
+        uploadedUrl = data.secure_url || data.url;
         publicId = data.public_id;
-        formData.resource_type = data.resource_type || "raw";
+        resourceType = data.resource_type;
       }
 
-      // 🟢 Simpan data ke Firestore
+      // 🟢 Simpan ke Firestore
       await addDoc(collection(db, "pending_users"), {
         ...formData,
         foto: uploadedUrl,
         public_id: publicId,
-        resource_type: formData.resource_type,
+        resource_type: resourceType,
         status: "pending",
         created_at: serverTimestamp(),
       });
 
       setSuccess("Data berhasil dikirim! Menunggu persetujuan admin.");
+
       setFormData({
         nrp: "",
         nama: "",
@@ -130,7 +136,9 @@ const RegisterPendingStyled = () => {
         foto: "",
         requested_role: "user",
         public_id: "",
+        resource_type: "",
       });
+
       setPreviewFoto(null);
       setFotoFile(null);
 
@@ -347,6 +355,20 @@ const RegisterPendingStyled = () => {
             {loading ? "Menyimpan..." : "Simpan Data"}
           </button>
         </form>
+        <Link
+          to="/login"
+          className="
+                      mt-6 block w-full text-center
+                      bg-gradient-to-r from-blue-600 to-blue-700
+                      text-white font-semibold
+                      px-4 py-3 rounded-xl
+                      shadow-md
+                      transition-all duration-300 ease-out
+                      hover:-translate-y-1 hover:shadow-xl hover:from-blue-500 hover:to-blue-700
+                      active:translate-y-0 active:shadow-md"
+        >
+          Kembali
+        </Link>
       </div>
     </div>
   );

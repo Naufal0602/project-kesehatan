@@ -19,6 +19,11 @@ import autoTable from "jspdf-autotable";
 import { Info, Pencil, X, Trash2 } from "lucide-react";
 import Select from "react-select";
 
+const isAndroidWebView = () =>
+  typeof window !== "undefined" && window.AndroidInterface;
+
+let exporting = false;
+
 const AdminDataPenyakitDetail = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -231,104 +236,103 @@ const AdminDataPenyakitDetail = () => {
     },
   ];
   const printPdfAll = () => {
-    const doc = new jsPDF({
-      orientation: "portrait", // sesuai permintaan
-      unit: "mm",
-      format: "a4",
-    });
+    if (exporting) return;
+    exporting = true;
 
-    const marginLeft = 14;
-    const marginRight = 14;
+    try {
+      const doc = new jsPDF("p", "mm", "a4");
 
-    doc.setFontSize(16);
-    doc.text("Data Jenis Penyakit", marginLeft, 15);
+      doc.setFontSize(16);
+      doc.text("Data Jenis Penyakit", 14, 15);
 
-    const tableData = data.map((item, i) => {
-      const antisipasiTxt = item.antisipasi?.join(", ") || "-";
-      const obatTxt =
-        item.obatList
-          ?.map((o) => `${o.nama_obat} (${o.jenis}) - ${o.dosis}`)
-          .join("; ") || "-";
-
-      return [i + 1, item.nama_jenis, antisipasiTxt, item.tips || "-", obatTxt];
-    });
-
-    autoTable(doc, {
-      startY: 22,
-      margin: { left: marginLeft, right: marginRight },
-
-      head: [["No", "Nama Jenis", "Antisipasi", "Tips", "Obat"]],
-      body: tableData,
-
-      styles: {
-        fontSize: 10,
-        cellPadding: 2,
-        overflow: "linebreak", // wrap otomatis
-      },
-
-      headStyles: {
-        fillColor: [34, 139, 34],
-        textColor: 255,
-        fontSize: 11,
-      },
-
-      columnStyles: {
-        0: { cellWidth: 10 },
-        1: { cellWidth: 35, overflow: "linebreak" },
-        2: { cellWidth: 40, overflow: "linebreak" },
-        3: { cellWidth: 30, overflow: "linebreak" },
-        4: { cellWidth: "auto", overflow: "linebreak" }, // biar obat wrap rapi
-      },
-    });
-
-    doc.save("data_penyakit.pdf");
-  };
-
-  const printPdfRange = () => {
-    const from = new Date(fromDate);
-    const to = new Date(toDate);
-
-    const filtered = data.filter((item) => {
-      const t = item.created_at?.toDate();
-      return t >= from && t <= to;
-    });
-
-    // Format data untuk PDF table
-    const tableData = filtered.map((item, i) => {
-      const obatFormatted = item.obatList
-        ?.map((o) => `${o.nama_obat} (${o.jenis}) - ${o.dosis}`)
-        .join("; ");
-
-      return [
+      const tableData = data.map((item, i) => [
         i + 1,
         item.nama_jenis,
         item.antisipasi?.join(", ") || "-",
         item.tips || "-",
-        obatFormatted || "-",
-      ];
-    });
+        item.obatList
+          ?.map((o) => `${o.nama_obat} (${o.jenis}) - ${o.dosis}`)
+          .join("; ") || "-",
+      ]);
 
-    const doc = new jsPDF("p", "mm", "a4");
+      autoTable(doc, {
+        startY: 22,
+        head: [["No", "Nama Jenis", "Antisipasi", "Tips", "Obat"]],
+        body: tableData,
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [34, 139, 34], textColor: 255 },
+      });
 
-    doc.setFontSize(16);
-    doc.text("Data Jenis Penyakit (Filter Tanggal)", 14, 15);
+      const fileName = `data_penyakit_${
+        new Date().toISOString().split("T")[0]
+      }.pdf`;
 
-    autoTable(doc, {
-      head: [["No", "Nama Jenis", "Antisipasi", "Tips", "Obat"]],
-      body: tableData,
-      startY: 25,
-      styles: {
-        fontSize: 10,
-        cellPadding: 3,
-      },
-      headStyles: {
-        fillColor: [22, 160, 133], // hijau soft
-        textColor: 255,
-        fontSize: 11,
-      },
-    });
+      if (isAndroidWebView()) {
+        const base64 = doc.output("base64");
+        window.AndroidInterface.savePDF(base64, fileName);
+      } else {
+        doc.save(fileName);
+      }
+    } finally {
+      setTimeout(() => (exporting = false), 1500);
+    }
+  };
 
-    doc.save("data_penyakit_filter.pdf");
+  const printPdfRange = () => {
+    if (exporting) return;
+    exporting = true;
+
+    try {
+      const from = new Date(fromDate);
+      const to = new Date(toDate);
+
+      const filtered = data.filter((item) => {
+        const t = item.created_at?.toDate?.();
+        return t && t >= from && t <= to;
+      });
+
+      const doc = new jsPDF("p", "mm", "a4");
+      doc.text("Data Penyakit (Filter Tanggal)", 14, 15);
+
+      const tableData = filtered.map((item, i) => [
+        i + 1,
+        item.nama_jenis,
+        item.antisipasi?.join(", ") || "-",
+        item.tips || "-",
+        item.obatList
+          ?.map((o) => `${o.nama_obat} (${o.jenis}) - ${o.dosis}`)
+          .join("; ") || "-",
+      ]);
+
+      autoTable(doc, {
+        startY: 22,
+        head: [["No", "Nama Jenis", "Antisipasi", "Tips", "Obat"]],
+        body: tableData,
+      });
+
+      const fileName = `data_penyakit_filter_${fromDate}_${toDate}.pdf`;
+
+      if (isAndroidWebView()) {
+        const base64 = doc.output("base64");
+        window.AndroidInterface.savePDF(base64, fileName);
+      } else {
+        doc.save(fileName);
+      }
+    } finally {
+      setTimeout(() => (exporting = false), 1500);
+    }
+  };
+
+  const saveExcel = (workbook, fileName) => {
+    if (isAndroidWebView()) {
+      const wbout = XLSX.write(workbook, {
+        bookType: "xlsx",
+        type: "base64",
+      });
+      window.AndroidInterface.saveExcel(wbout, fileName);
+    } else {
+      XLSX.writeFile(workbook, fileName);
+    }
   };
 
   const printExcelAll = () => {
@@ -349,7 +353,7 @@ const AdminDataPenyakitDetail = () => {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Data Penyakit");
 
-    XLSX.writeFile(workbook, "data_penyakit.xlsx");
+    saveExcel(workbook, "data_penyakit.xlsx");
   };
 
   const printExcelRange = () => {
@@ -379,7 +383,7 @@ const AdminDataPenyakitDetail = () => {
     const workbook = XLSX.utils.book_new();
 
     XLSX.utils.book_append_sheet(workbook, worksheet, "Data Penyakit");
-    XLSX.writeFile(workbook, "data_penyakit_filtered.xlsx");
+    saveExcel(workbook, "data_penyakit_filtered.xlsx");
   };
 
   const jenisOptions = data.map((item) => ({
