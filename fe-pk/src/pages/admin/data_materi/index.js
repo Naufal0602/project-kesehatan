@@ -40,6 +40,9 @@ const initialFormData = {
   tahan_napas_detik: "",
   tanggal_pengujian: "",
 };
+const isAndroidWebView = () => {
+  return typeof window !== "undefined" && window.AndroidInterface;
+};
 
 // --- Komponen Modal Detail ---
 const DetailModal = ({ data, onClose }) => {
@@ -393,32 +396,32 @@ const DataMateriAdmin = () => {
           "Admin Input",
           "Tanggal",
           "IMT",
-          "Kelenturan (cm)",
+          "Kelenturan",
           "VO2Max",
-          "Push Up (mnt)",
-          "Sit Up (mnt)",
-          "Squat (mnt)",
-          "Tahan Napas (dtk)",
+          "Push Up",
+          "Sit Up",
+          "Squat",
+          "Tahan Napas",
         ],
       ],
       body: tableData,
-      styles: {
-        fontSize: 9,
-        halign: "center",
-        valign: "middle",
-      },
-      headStyles: {
-        fillColor: [22, 163, 74],
-        textColor: 255,
-        fontSize: 9,
-      },
-      alternateRowStyles: {
-        fillColor: [245, 245, 245],
-      },
+      styles: { fontSize: 9, halign: "center" },
+      headStyles: { fillColor: [22, 163, 74], textColor: 255 },
     });
 
-    doc.save("laporan-data-materi.pdf");
+    const today = new Date().toISOString().split("T")[0];
+    const fileName = `laporan-materi-${today}.pdf`;
+
+    // 🔥 KHUSUS ANDROID WEBVIEW
+    if (isAndroidWebView()) {
+      const base64 = doc.output("datauristring");
+      window.AndroidInterface.savePDF(base64, fileName);
+    } else {
+      // 🌐 Browser normal
+      doc.save(fileName);
+    }
   };
+
   const exportAllData = () => {
     generatePDF(dataMateri, "Laporan Data Materi");
     setShowExportModal(false);
@@ -473,20 +476,20 @@ const DataMateriAdmin = () => {
           </div>
         )}
         <div className="bg-white p-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
-          <input
-            type="text"
-            placeholder="Cari peserta / admin / tanggal..."
-            className="border p-2 rounded mb-4 w-full sm:w-1/3"
-            value={filterText}
-            onChange={(e) => setFilterText(e.target.value)}
-          />
-           <button
-            onClick={handleAdd}
-            className="bg-green-600 flex text-white px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base rounded-lg shadow-md hover:bg-green-700 transition duration-300"
-          >
-            <Plus size={18} className="mr-1" /> Tambah Data
-          </button>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
+            <input
+              type="text"
+              placeholder="Cari peserta / admin / tanggal..."
+              className="border p-2 rounded mb-4 w-full sm:w-1/3"
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+            />
+            <button
+              onClick={handleAdd}
+              className="bg-green-600 flex text-white px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base rounded-lg shadow-md hover:bg-green-700 transition duration-300"
+            >
+              <Plus size={18} className="mr-1" /> Tambah Data
+            </button>
           </div>
 
           <DataTable
