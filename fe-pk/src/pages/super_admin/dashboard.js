@@ -26,6 +26,7 @@ const BULAN = [
   "November",
   "Desember",
 ];
+const currentYear = new Date().getFullYear();
 
 const AdminDashboard = () => {
   const [userCount, setUserCount] = useState(0);
@@ -41,7 +42,7 @@ const AdminDashboard = () => {
   const [search, setSearch] = useState("");
   const [limit, setLimit] = useState("10000");
   const [page, setPage] = useState(1);
-
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const ITEMS_PER_PAGE = 5;
 
   /* ===================== DETAIL POPUP ===================== */
@@ -55,8 +56,9 @@ const AdminDashboard = () => {
 
       const date = d.bulan.toDate ? d.bulan.toDate() : new Date(d.bulan);
 
-      if (
+       if (
         date.getMonth() === selectedMonth &&
+        date.getFullYear() === selectedYear &&
         d.id_jenis_penyakit === jenisId
       ) {
         list.push(d);
@@ -92,8 +94,9 @@ const AdminDashboard = () => {
 
           const date = p.bulan.toDate ? p.bulan.toDate() : new Date(p.bulan);
 
-          if (
+         if (
             date.getMonth() === selectedMonth &&
+            date.getFullYear() === selectedYear &&
             p.id_jenis_penyakit === jenisDoc.id
           ) {
             total++;
@@ -116,7 +119,7 @@ const AdminDashboard = () => {
       setLimit(5);
     }
     setPage(1);
-  }, [search, limit, selectedMonth]);
+  }, [search, limit, selectedMonth, selectedYear]);
 
   // SEARCH
   const searchedData = chartData.filter((d) =>
@@ -171,65 +174,86 @@ const AdminDashboard = () => {
         </div>
 
         {/* FILTER BULAN */}
-      <div className="bg-white p-4">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
-        <select
-          value={selectedMonth}
-          onChange={(e) => setSelectedMonth(Number(e.target.value))}
-          className="mb-4 px-4 py-2 border rounded-lg"
-        >
-          {BULAN.map((b, i) => (
-            <option key={i} value={i}>
-              {b}
-            </option>
-          ))}
-        </select>
-        <input
-          type="text"
-          placeholder="Cari jenis penyakit..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="px-4 py-2 border rounded-lg w-full md:w-1/3 mb-3"
-        />
-        </div>
+        <div className="bg-white p-4">
+          <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between mb-4">
+            <div className="flex gap-3">
+              {/* BULAN */}
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                className="px-4 py-2 border rounded-lg"
+              >
+                {BULAN.map((b, i) => (
+                  <option key={i} value={i}>
+                    {b}
+                  </option>
+                ))}
+              </select>
 
-        {/* CHART */}
-        <div className="bg-white p-6 rounded-2xl shadow">
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart layout="vertical" data={paginatedData}>
-              <XAxis type="number" />
-              <YAxis type="category" dataKey="name" width={150} />
-              <Tooltip />
-              <Bar
-                dataKey="total"
-                fill="#16A34A"
-                onClick={(e) => loadDetail(e.payload.jenisId, e.payload.name)}
-              />
-            </BarChart>
-          </ResponsiveContainer>
+              {/* TAHUN */}
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="px-4 py-2 border rounded-lg"
+              >
+                {Array.from({ length: 10 }, (_, i) => {
+                  const year = currentYear - i;
+                  return (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
 
-          <div className="flex justify-between items-center mt-4">
-            <button
-              disabled={page === 1}
-              onClick={() => setPage(page - 1)}
-              className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
-            >
-              Prev
-            </button>
-
-            <span className="text-sm text-gray-600">
-              Page {page} dari {totalPage}
-            </span>
-
-            <button
-              disabled={page === totalPage}
-              onClick={() => setPage(page + 1)}
-              className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
-            >
-              Next
-            </button>
+            {/* SEARCH */}
+            <input
+              type="text"
+              placeholder="Cari jenis penyakit..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="px-4 py-2 border rounded-lg w-full md:w-1/3"
+            />
           </div>
-        </div>
+
+          {/* CHART */}
+          <div className="bg-white p-6 rounded-2xl shadow">
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart layout="vertical" data={paginatedData}>
+                <XAxis type="number" />
+                <YAxis type="category" dataKey="name" width={150} />
+                <Tooltip />
+                <Bar
+                  dataKey="total"
+                  fill="#16A34A"
+                  onClick={(e) => loadDetail(e.payload.jenisId, e.payload.name)}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+
+            <div className="flex justify-between items-center mt-4">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage(page - 1)}
+                className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
+              >
+                Prev
+              </button>
+
+              <span className="text-sm text-gray-600">
+                Page {page} dari {totalPage}
+              </span>
+
+              <button
+                disabled={page === totalPage}
+                onClick={() => setPage(page + 1)}
+                className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -277,6 +301,5 @@ const Card = ({ icon, label, value, color }) => {
     </div>
   );
 };
-
 
 export default AdminDashboard;

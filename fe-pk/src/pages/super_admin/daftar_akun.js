@@ -14,6 +14,8 @@ import { Loader2, Info, Trash2, Search } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast, Toaster } from "sonner";
+import FullScreenLoader from "../../components/FullScreenLoader";
+import { updateDoc } from "firebase/firestore";
 
 const DaftarAccount = () => {
   const [akunList, setAkunList] = useState([]);
@@ -25,6 +27,12 @@ const DaftarAccount = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [selectedRole, setSelectedRole] = useState("all"); // admin | user | all
   const [selectedTingkatan, setSelectedTingkatan] = useState("all");
+
+  const [loader, setLoader] = useState({
+    visible: false,
+    status: "loading", // loading | success | error
+    message: "",
+  });
 
   const fetchAkun = async () => {
     setLoading(true);
@@ -68,6 +76,33 @@ const DaftarAccount = () => {
     setLoading(false);
   };
 
+  const handleChangeRole = async (userId, newRole) => {
+    try {
+      setLoader({
+        visible: true,
+        status: "loading",
+        message: "Mengubah role akun...",
+      });
+
+      await updateDoc(doc(db, "users", userId), {
+        role: newRole,
+      });
+
+      setLoader({
+        visible: true,
+        status: "success",
+        message: "Role berhasil diubah",
+      });
+    } catch (error) {
+      console.error("Gagal update role:", error);
+      setLoader({
+        visible: true,
+        status: "error",
+        message: "Gagal mengubah role",
+      });
+    }
+  };
+
   useEffect(() => {
     fetchAkun();
   }, [refresh]);
@@ -81,7 +116,26 @@ const DaftarAccount = () => {
       selector: (row) => row.nama_tingkatan || "-",
       sortable: true,
     },
-    { name: "Role", selector: (row) => row.role || "-", sortable: true },
+    {
+      name: "Role",
+      cell: (row) => (
+        <select
+          value={row.role}
+          onChange={(e) => handleChangeRole(row.user_id, e.target.value)}
+          className={`px-2 py-1 rounded-md text-sm font-medium border transition
+        ${
+          row.role === "admin"
+            ? "bg-yellow-50 text-yellow-700 border-yellow-400"
+            : "bg-blue-50 text-blue-700 border-blue-400"
+        }
+      `}
+        >
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+        </select>
+      ),
+      sortable: true,
+    },
     {
       name: "Aksi",
       cell: (row) => (
@@ -256,6 +310,10 @@ const DaftarAccount = () => {
 
   return (
     <>
+      {loader.visible && (
+        <FullScreenLoader status={loader.status} message={loader.message} />
+      )}
+
       <Toaster richColors position="top-right" />
       <div className="flex min-h-screen bg-gray-50">
         <div className="fixed top-0 left-0 z-50">

@@ -10,7 +10,6 @@ import {
   Info,
   File,
   X,
-  Eye,
   Download,
 } from "lucide-react";
 import {
@@ -407,7 +406,7 @@ const handleDownload = async (file) => {
         const namaFile =
           file.nama_file?.includes(".")
             ? file.nama_file
-            : "file_unduhan.pdf";
+            : "file_tugas.pdf";
 
         // PANGGIL ANDROID
         window.AndroidInterface.savePDF(base64data, namaFile);
@@ -722,17 +721,6 @@ const handleDownload = async (file) => {
 
                           {/* ✅ Tombol Aksi */}
                           <div className="flex gap-2 mt-2">
-                            {(isImage || isPDF) && (
-                              <a
-                                href={f.file_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded inline-flex items-center gap-2"
-                              >
-                                <Eye size={14} /> Lihat
-                              </a>
-                            )}
-
                             <button
                               onClick={() => handleDownload(f)}
                               className="bg-green-500 text-white px-3 py-1 rounded flex items-center gap-1 hover:bg-green-600"

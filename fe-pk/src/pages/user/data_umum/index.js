@@ -275,14 +275,6 @@ const UserDataUmum = () => {
 
                           {/* Tombol aksi */}
                           <div className="flex gap-2 justify-end">
-                            <a
-                              href={file.file_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="bg-blue-500 text-white px-3 py-1 rounded flex items-center gap-1 hover:bg-blue-600"
-                            >
-                              <Eye size={14} /> Lihat
-                            </a>
                             <button
                               onClick={() => handleDownload(file)}
                               className="bg-green-500 text-white px-3 py-1 rounded flex items-center gap-1 hover:bg-green-600"

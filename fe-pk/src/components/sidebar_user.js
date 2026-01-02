@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { HeartPulse, LibraryBig, House, ChevronDown, ShieldCheck } from "lucide-react";
+import {
+  HeartPulse,
+  LibraryBig,
+  House,
+  ChevronDown,
+  ShieldCheck,
+} from "lucide-react";
 import LogoutButton from "./logout_button";
 import { auth, db } from "../services/firebaseConfig";
 import {
@@ -12,7 +18,6 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
-
 
 const Sidebar = () => {
   const [showMenu, setShowMenu] = useState(false);
@@ -34,7 +39,11 @@ const Sidebar = () => {
       icon: <HeartPulse />,
     },
     { to: "/user/data_umum/index", label: "Data Umum", icon: <HeartPulse /> },
-    { to: "/user/data_antisipasi/index", label: "Antisipasi", icon: <ShieldCheck /> },
+    {
+      to: "/user/data_antisipasi/index",
+      label: "Antisipasi",
+      icon: <ShieldCheck />,
+    },
   ];
 
   // 🔹 Dengar perubahan user login dan ambil data dari Firestore
@@ -95,11 +104,31 @@ const Sidebar = () => {
         {/* Tombol dropdown nama user */}
         <button
           onClick={() => setShowMenu(!showMenu)}
-          className="text-white p-4 ml-auto flex items-center gap-2 rounded-md transition hover:bg-green-700"
+          className="
+    text-white p-2 ml-auto
+    flex items-center gap-2
+    rounded-md transition
+    hover:bg-green-700
+    max-w-[56px] sm:max-w-[240px]
+    mr-4 bg-black bg-opacity-20
+  "
         >
-          {userName}
+          {/* ICON USER */}
+          <div
+            className="w-8 h-8 rounded-full bg-white text-green-600 
+                  flex items-center justify-center font-bold flex-shrink-0"
+          >
+            {userName?.charAt(0)?.toUpperCase()}
+          </div>
+
+          {/* USER NAME */}
+          <span className="hidden sm:block truncate" title={userName}>
+            {userName}
+          </span>
+
+          {/* DROPDOWN ICON */}
           <ChevronDown
-            className={`transition-transform duration-300 ${
+            className={`flex-shrink-0 transition-transform duration-300 ${
               showMenu ? "rotate-180" : ""
             }`}
           />

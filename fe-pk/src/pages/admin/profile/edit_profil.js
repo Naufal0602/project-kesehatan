@@ -43,6 +43,8 @@ export default function EditProfile() {
   const uploadToBackend = async (file) => {
     const data = new FormData();
     data.append("file", file);
+    data.append("upload_preset", "react_unsigned"); // 🔥 WAJIB
+    data.append("folder", "react_uploads"); // opsional, tapi rapi
 
     const res = await fetch(
       "https://api.cloudinary.com/v1_1/dmqehg4y5/auto/upload",
@@ -52,13 +54,14 @@ export default function EditProfile() {
       }
     );
 
-    const result = await res.json();
-    return result;
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error("Upload Cloudinary gagal: " + errText);
+    }
+
+    return await res.json();
   };
 
-  // =======================
-  // 🔹 Saat pilih foto → belum upload
-  // =======================
   const handleFotoChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -212,17 +215,40 @@ export default function EditProfile() {
           </div>
 
           {/* BUTTONS */}
-          <div className="lg:flex row item-center space-y-4 justify-center gap-5 mt-10">
+          <div className="flex flex-col sm:flex-row justify-center gap-4 mt-10">
             <button
               onClick={handleSave}
-              className="px-10 py-3 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700"
+              className="
+      inline-flex items-center justify-center
+      px-10 py-3
+      rounded-xl
+      bg-blue-600 text-white
+      font-medium
+      shadow-md
+      transition-all duration-200
+      hover:bg-blue-700 hover:shadow-lg
+      active:scale-[0.97]
+      focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2
+    "
             >
-              Simpan
+              Simpan Perubahan
             </button>
 
             <button
               onClick={() => navigate(-1)}
-              className="px-10 py-3 border rounded-lg text-gray-700 hover:bg-gray-100"
+              className="
+      inline-flex items-center justify-center
+      px-10 py-3
+      rounded-xl
+      border border-gray-300
+      text-gray-700
+      font-medium
+      bg-transparent
+      transition-all duration-200
+      hover:bg-gray-100 hover:text-gray-900
+      active:scale-[0.97]
+      focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2
+    "
             >
               Batal
             </button>

@@ -66,13 +66,26 @@ export default function UserProfile() {
               {/* TOMBOL EDIT */}
               <Link
                 to="/user/profile/edit_profil"
-                className="mt-6 inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full text-center"
+                className="
+                                  mt-6 block w-full text-center
+                                  bg-gradient-to-r from-blue-600 to-blue-700
+                                  text-white font-semibold
+                                  px-4 py-3 rounded-xl
+                                  shadow-md
+                                  transition-all duration-300 ease-out
+                                  hover:-translate-y-1 hover:shadow-xl hover:from-blue-500 hover:to-blue-700
+                                  active:translate-y-0 active:shadow-md"
               >
                 Edit Profil
               </Link>
+
               <Link
                 to="/reset-password"
-                className="mt-4 block text-center text-blue-600 hover:underline"
+                className="
+                mt-4 block text-center
+                text-white font-medium
+                transition-all duration-300
+                hover:text-gray-300 hover:tracking-wide bg-red-500 py-2 rounded-xl"
               >
                 Reset Password
               </Link>

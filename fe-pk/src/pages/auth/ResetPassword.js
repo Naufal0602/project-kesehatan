@@ -3,6 +3,7 @@ import { sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "../../services/firebaseConfig";
 import { Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export default function ResetPassword() {
   const [email, setEmail] = useState("");
@@ -69,6 +70,20 @@ export default function ResetPassword() {
             {loading ? "Mengirim..." : "Kirim Link Reset"}
           </button>
         </form>
+        <Link
+                to="/login"
+                className="
+                      mt-6 block w-full text-center
+                      bg-gradient-to-r from-blue-600 to-blue-700
+                      text-white font-semibold
+                      px-4 py-3 rounded-xl
+                      shadow-md
+                      transition-all duration-300 ease-out
+                      hover:-translate-y-1 hover:shadow-xl hover:from-blue-500 hover:to-blue-700
+                      active:translate-y-0 active:shadow-md"
+              >
+                Kembali
+              </Link>
 
         {/* ALERT */}
         {message && (

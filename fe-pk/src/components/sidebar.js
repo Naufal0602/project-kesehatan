@@ -9,12 +9,19 @@ import {
   House,
   ChevronDown,
   ClipboardList,
-  ShieldCheck
+  ShieldCheck,
 } from "lucide-react";
 
 import LogoutButton from "./logout_button";
 import { auth, db } from "../services/firebaseConfig";
-import { doc, getDoc, query, collection, where, getDocs } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  query,
+  collection,
+  where,
+  getDocs,
+} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
 const Sidebar = () => {
@@ -28,13 +35,37 @@ const Sidebar = () => {
 
   const menuItems = [
     { to: "/admin/dashboard", label: "Dashboard", icon: <House /> },
-    { to: "/admin/data_umum/index", label: "Data Umum", icon: <ClipboardList /> },
-    { to: "/admin/data_materi/index", label: "Data Materi", icon: <LibraryBig /> },
-    { to: "/admin/data_penyakit/index", label: "Data Penyakit", icon: <HeartPulse /> },
-    { to: "/admin/data_penyakit/data_antisipasi", label: "Data Antisipasi", icon: <ShieldCheck /> },
+    {
+      to: "/admin/data_umum/index",
+      label: "Data Umum",
+      icon: <ClipboardList />,
+    },
+    {
+      to: "/admin/data_materi/index",
+      label: "Data Materi",
+      icon: <LibraryBig />,
+    },
+    {
+      to: "/admin/data_penyakit/index",
+      label: "Data Penyakit",
+      icon: <HeartPulse />,
+    },
+    {
+      to: "/admin/data_penyakit/data_antisipasi",
+      label: "Data Antisipasi",
+      icon: <ShieldCheck />,
+    },
     { to: "/admin/tingkatan", label: "Tingkatan", icon: <Layers /> },
-    { to: "/admin/daftar-account", label: "Daftar Akun Pengguna", icon: <Users /> },
-    { to: "/admin/confirm-account", label: "Daftar Akun Tertunda", icon: <ClockFading /> },
+    {
+      to: "/admin/daftar-account",
+      label: "Daftar Akun Pengguna",
+      icon: <Users />,
+    },
+    {
+      to: "/admin/confirm-account",
+      label: "Daftar Akun Tertunda",
+      icon: <ClockFading />,
+    },
   ];
 
   // 🔥 AMBIL DATA ADMIN DARI FIRESTORE
@@ -64,8 +95,6 @@ const Sidebar = () => {
             const data = snap.data();
 
             setAdminName(data.nama || "Admin");
-
-            
           }
         } catch (err) {
           console.error("Gagal load admin:", err);
@@ -92,11 +121,31 @@ const Sidebar = () => {
         {/* ADMIN DROPDOWN */}
         <button
           onClick={() => setShowMenu(!showMenu)}
-          className="text-white p-4 ml-auto flex items-center gap-2"
+          className="
+    text-white p-2 ml-auto
+    flex items-center gap-2
+    rounded-md transition
+    hover:bg-green-700
+    max-w-[56px] sm:max-w-[240px]
+    mr-4 bg-black bg-opacity-20
+  "
         >
-          {adminName}
+          {/* ICON USER */}
+          <div
+            className="w-8 h-8 rounded-full bg-white text-green-600 
+                  flex items-center justify-center font-bold flex-shrink-0"
+          >
+            {adminName?.charAt(0)?.toUpperCase()}
+          </div>
+
+          {/* USER NAME */}
+          <span className="hidden sm:block truncate" title={adminName}>
+            {adminName}
+          </span>
+
+          {/* DROPDOWN ICON */}
           <ChevronDown
-            className={`transition-transform duration-300 ${
+            className={`flex-shrink-0 transition-transform duration-300 ${
               showMenu ? "rotate-180" : ""
             }`}
           />
@@ -112,14 +161,14 @@ const Sidebar = () => {
         >
           <LogoutButton />
           <Link to="/admin/profile/user_profil">
-                      <button
-                        className="bg-white w-full py-3 text-xl rounded-lg text-green-500 
+            <button
+              className="bg-white w-full py-3 text-xl rounded-lg text-green-500 
                          hover:bg-gray-200 transition duration-300 ease-in-out 
                          transform hover:scale-105"
-                      >
-                        Profil
-                      </button>
-                    </Link>
+            >
+              Profil
+            </button>
+          </Link>
         </div>
       </div>
 

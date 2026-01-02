@@ -26,6 +26,7 @@ const BULAN = [
   "November",
   "Desember",
 ];
+const currentYear = new Date().getFullYear();
 
 const AdminDashboard = () => {
   const [userCount, setUserCount] = useState(0);
@@ -41,6 +42,7 @@ const AdminDashboard = () => {
   const [search, setSearch] = useState("");
   const [limit, setLimit] = useState("10000");
   const [page, setPage] = useState(1);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
 
   const ITEMS_PER_PAGE = 5;
 
@@ -57,6 +59,7 @@ const AdminDashboard = () => {
 
       if (
         date.getMonth() === selectedMonth &&
+        date.getFullYear() === selectedYear &&
         d.id_jenis_penyakit === jenisId
       ) {
         list.push(d);
@@ -93,6 +96,7 @@ const AdminDashboard = () => {
 
           if (
             date.getMonth() === selectedMonth &&
+            date.getFullYear() === selectedYear &&
             p.id_jenis_penyakit === jenisDoc.id
           ) {
             total++;
@@ -115,7 +119,7 @@ const AdminDashboard = () => {
       setLimit(5);
     }
     setPage(1);
-  }, [search, limit, selectedMonth]);
+  }, [search, limit, selectedMonth, selectedYear]);
 
   // SEARCH
   const searchedData = chartData.filter((d) =>
@@ -169,26 +173,46 @@ const AdminDashboard = () => {
           />
         </div>
 
-        {/* FILTER BULAN */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
-        <select
-          value={selectedMonth}
-          onChange={(e) => setSelectedMonth(Number(e.target.value))}
-          className="mb-4 px-4 py-2 border rounded-lg"
-        >
-          {BULAN.map((b, i) => (
-            <option key={i} value={i}>
-              {b}
-            </option>
-          ))}
-        </select>
-        <input
-          type="text"
-          placeholder="Cari jenis penyakit..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="px-4 py-2 border rounded-lg w-full md:w-1/3 mb-3"
-        />
+        <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between mb-4">
+          <div className="flex gap-3">
+            {/* BULAN */}
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              className="px-4 py-2 border rounded-lg"
+            >
+              {BULAN.map((b, i) => (
+                <option key={i} value={i}>
+                  {b}
+                </option>
+              ))}
+            </select>
+
+            {/* TAHUN */}
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="px-4 py-2 border rounded-lg"
+            >
+              {Array.from({ length: 10 }, (_, i) => {
+                const year = currentYear - i;
+                return (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          {/* SEARCH */}
+          <input
+            type="text"
+            placeholder="Cari jenis penyakit..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="px-4 py-2 border rounded-lg w-full md:w-1/3"
+          />
         </div>
 
         {/* CHART */}
@@ -274,6 +298,5 @@ const Card = ({ icon, label, value, color }) => {
     </div>
   );
 };
-
 
 export default AdminDashboard;
