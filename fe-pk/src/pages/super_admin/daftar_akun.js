@@ -317,7 +317,7 @@ const DaftarAccount = () => {
 
       // 🔥 ANDROID WEBVIEW
       if (isAndroidWebView()) {
-        const base64 = doc.output("base64");
+        const base64 = doc.output("datauristring");
         window.AndroidInterface.savePDF(base64, fileName);
       } else {
         // 🌐 Browser biasa

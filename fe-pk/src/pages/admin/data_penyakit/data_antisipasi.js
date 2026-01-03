@@ -268,7 +268,7 @@ const AdminDataPenyakitDetail = () => {
       }.pdf`;
 
       if (isAndroidWebView()) {
-        const base64 = doc.output("base64");
+        const base64 = doc.output("datauristring");
         window.AndroidInterface.savePDF(base64, fileName);
       } else {
         doc.save(fileName);
@@ -313,7 +313,7 @@ const AdminDataPenyakitDetail = () => {
       const fileName = `data_penyakit_filter_${fromDate}_${toDate}.pdf`;
 
       if (isAndroidWebView()) {
-        const base64 = doc.output("base64");
+        const base64 = doc.output("datauristring");
         window.AndroidInterface.savePDF(base64, fileName);
       } else {
         doc.save(fileName);

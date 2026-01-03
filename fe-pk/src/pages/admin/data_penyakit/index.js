@@ -164,7 +164,7 @@ export default function AdminDataPenyakit() {
 
       // 🔥 ANDROID WEBVIEW
       if (isAndroidWebView()) {
-        const base64 = doc.output("base64"); // ⛔ BUKAN datauristring
+        const base64 = doc.output("datauristring");
         window.AndroidInterface.savePDF(base64, fileName);
       } else {
         // 🌐 BROWSER NORMAL
