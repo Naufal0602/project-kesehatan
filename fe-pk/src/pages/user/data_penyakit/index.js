@@ -402,7 +402,7 @@ export default function UserDataPenyakit() {
 
   const savePDFUniversal = (docPdf, fileName) => {
     // 🔥 SATU-SATUNYA FORMAT YANG BENAR
-    const dataUri = docPdf.output("datauristring");
+    const dataUri = docPdf.output("base64");
 
     // ANDROID WEBVIEW
     if (

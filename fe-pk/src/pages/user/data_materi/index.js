@@ -307,7 +307,7 @@ const DataMateriUser = () => {
 
   const savePDFUniversal = (docPdf, fileName) => {
     // 🔥 LANGSUNG AMBIL DATAURI
-    const dataUri = docPdf.output("datauristring");
+    const dataUri = docPdf.output("base64");
 
     // ANDROID WEBVIEW
     if (
