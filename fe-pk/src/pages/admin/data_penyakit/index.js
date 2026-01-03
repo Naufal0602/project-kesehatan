@@ -8,7 +8,11 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 const isAndroidWebView = () => {
-  return typeof window !== "undefined" && window.AndroidInterface;
+  return (
+    typeof window !== "undefined" &&
+    window.AndroidInterface &&
+    typeof window.AndroidInterface.savePDF === "function"
+  );
 };
 
 let exportingPDF = false;
@@ -163,11 +167,16 @@ export default function AdminDataPenyakit() {
       const fileName = `${safeTitle}_${today}.pdf`;
 
       // 🔥 ANDROID WEBVIEW
+      const base64 = doc.output("datauristring");
+
       if (isAndroidWebView()) {
-        const base64 = doc.output("datauristring");
-        window.AndroidInterface.savePDF(base64, fileName);
+        try {
+          window.AndroidInterface.savePDF(base64, fileName);
+        } catch (err) {
+          console.error("Android savePDF error:", err);
+          doc.save(fileName); // fallback
+        }
       } else {
-        // 🌐 BROWSER NORMAL
         doc.save(fileName);
       }
     } catch (e) {
