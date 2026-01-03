@@ -306,10 +306,13 @@ const DataMateriUser = () => {
   );
 
   const savePDFUniversal = (docPdf, fileName) => {
-    // 🔥 LANGSUNG AMBIL DATAURI
-    const dataUri = docPdf.output("base64");
+    // ✅ BASE64 MURNI
+    const base64 = docPdf.output("base64");
 
-    // ANDROID WEBVIEW
+    // ✅ TAMBAHKAN PREFIX DATA URI
+    const dataUri = `data:application/pdf;base64,${base64}`;
+
+    // 📱 ANDROID WEBVIEW
     if (
       typeof window !== "undefined" &&
       window.AndroidInterface &&
@@ -319,7 +322,7 @@ const DataMateriUser = () => {
       return;
     }
 
-    // 🌐 BROWSER
+    // 🌐 BROWSER NORMAL
     docPdf.save(fileName);
   };
 
