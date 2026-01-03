@@ -234,7 +234,7 @@ const DataMateriUser = () => {
         toast.warning("Tidak ada data untuk dicetak", {
           description: "Silakan cek filter tanggal atau data hasil tes.",
         });
-       setPrinting(false);
+        setPrinting(false);
         return;
       }
 
@@ -306,36 +306,21 @@ const DataMateriUser = () => {
   );
 
   const savePDFUniversal = (docPdf, fileName) => {
-    const arrayBuffer = docPdf.output("arraybuffer");
+    // 🔥 LANGSUNG AMBIL DATAURI
+    const dataUri = docPdf.output("datauristring");
 
-    // Jika Android WebView
-    if (window.AndroidInterface && window.AndroidInterface.savePDF) {
-      const uint8Array = new Uint8Array(arrayBuffer);
-
-      let binary = "";
-      const len = uint8Array.byteLength;
-
-      // Ubah byte → binary string aman
-      for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(uint8Array[i]);
-      }
-
-      // encode aman
-      const base64 = window.btoa(binary);
-
-      // kirim ke Android
-      window.AndroidInterface.savePDF(base64, fileName);
+    // ANDROID WEBVIEW
+    if (
+      typeof window !== "undefined" &&
+      window.AndroidInterface &&
+      typeof window.AndroidInterface.savePDF === "function"
+    ) {
+      window.AndroidInterface.savePDF(dataUri, fileName);
       return;
     }
 
-    // Jika bukan Android → download biasa
-    const blob = new Blob([arrayBuffer], { type: "application/pdf" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
+    // 🌐 BROWSER
+    docPdf.save(fileName);
   };
 
   const handlePrintAll = useCallback(async () => {

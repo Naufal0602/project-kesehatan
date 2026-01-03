@@ -48,7 +48,6 @@ const DataUmumAdmin = () => {
     );
   };
 
-
   const handleDeleteSelected = async () => {
     if (selectedFiles.length === 0) return;
 
@@ -387,47 +386,33 @@ const DataUmumAdmin = () => {
     return match ? match[1].toLowerCase() : "";
   };
 
- const handleDownload = async (file) => {
-  if (!file?.file_url) {
-    alert("File tidak ditemukan.");
-    return;
-  }
+  const handleDownload = (file) => {
+    if (!file?.file_url) {
+      alert("File tidak ditemukan.");
+      return;
+    }
 
-  const ext = getFileExtension(file.file_url) || "";
-  const namaFile =
-    file.nama_file && file.nama_file.includes(".")
-      ? file.nama_file
-      : `${file.nama_file || "file"}${ext ? "." + ext : ""}`;
+    const ext = getFileExtension(file.file_url);
+    let namaFile = file.nama_file || "file";
 
-  // 📱 ANDROID WEBVIEW
-  if (window.AndroidInterface && window.AndroidInterface.downloadFile) {
-    window.AndroidInterface.downloadFile(
-      file.file_url,
-      namaFile
-    );
-    return;
-  }
+    if (!namaFile.includes(".") && ext) {
+      namaFile += "." + ext;
+    }
 
-  // 🌐 WEB BROWSER
-  try {
-    const response = await fetch(file.file_url);
-    const blob = await response.blob();
+    // 📱 ANDROID WEBVIEW (INI YANG BENAR)
+    if (window.AndroidInterface?.downloadFile) {
+      window.AndroidInterface.downloadFile(file.file_url, namaFile);
+      return;
+    }
 
-    const urlBlob = window.URL.createObjectURL(blob);
+    // 🌐 BROWSER BIASA
     const a = document.createElement("a");
-    a.href = urlBlob;
+    a.href = file.file_url;
     a.download = namaFile;
     document.body.appendChild(a);
     a.click();
     a.remove();
-    window.URL.revokeObjectURL(urlBlob);
-  } catch (err) {
-    console.error("Gagal mengunduh file:", err);
-    alert("Terjadi kesalahan saat mengunduh file.");
-  }
-};
-
-
+  };
 
   return (
     <div className="flex min-h-screen bg-gray-50">

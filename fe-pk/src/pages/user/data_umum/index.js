@@ -70,20 +70,21 @@ const UserDataUmum = () => {
     return match ? match[1].toLowerCase() : "";
   };
 
-  // 🔹 Fungsi download file dengan ekstensi benar
-  const handleDownload = async (file) => {
+  const handleDownload = (file) => {
     if (!file?.file_url) {
       toast.warning("File tidak ditemukan");
       return;
     }
 
-    const ext = getFileExtension(file.file_url) || "bin";
+    const extFromUrl = getFileExtension(file.file_url);
+    let namaFile = file.nama_file || "file";
 
-    const namaFile = file.nama_file?.includes(".")
-      ? file.nama_file
-      : `${file.nama_file || "file_unduhan"}.${ext}`;
+    // pastikan ada ekstensi
+    if (!namaFile.includes(".") && extFromUrl) {
+      namaFile += "." + extFromUrl;
+    }
 
-    await downloadUniversalFile(file.file_url, namaFile);
+    downloadUniversalFile(file.file_url, namaFile);
 
     toast.success("Unduhan dimulai", {
       description: namaFile,
@@ -120,30 +121,20 @@ const UserDataUmum = () => {
     },
   ];
 
-  const downloadUniversalFile = async (fileUrl, fileName) => {
-    try {
-      // 🔹 Android WebView
-      if (window.AndroidInterface && window.AndroidInterface.saveFileFromUrl) {
-        window.AndroidInterface.saveFileFromUrl(fileUrl, fileName);
-        return;
-      }
-
-      // 🔹 Web browser biasa
-      const response = await fetch(fileUrl);
-      const blob = await response.blob();
-
-      const urlBlob = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = urlBlob;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(urlBlob);
-    } catch (err) {
-      console.error("Gagal mengunduh file:", err);
-      toast.error("Gagal mengunduh file");
+  const downloadUniversalFile = (fileUrl, fileName) => {
+    // 📱 ANDROID WEBVIEW
+    if (window.AndroidInterface?.downloadFile) {
+      window.AndroidInterface.downloadFile(fileUrl, fileName);
+      return;
     }
+
+    // 🌐 WEB BROWSER
+    const a = document.createElement("a");
+    a.href = fileUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   };
 
   return (

@@ -173,9 +173,9 @@ export default function UserDataPenyakit() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedJenis || !hasilLab || !bulan || !namaPenyakit) {
-     toast.warning("Data belum lengkap", {
-      description: "Harap isi semua field terlebih dahulu.",
-    });
+      toast.warning("Data belum lengkap", {
+        description: "Harap isi semua field terlebih dahulu.",
+      });
       return;
     }
     try {
@@ -401,31 +401,21 @@ export default function UserDataPenyakit() {
   };
 
   const savePDFUniversal = (docPdf, fileName) => {
-    const arrayBuffer = docPdf.output("arraybuffer");
+    // 🔥 SATU-SATUNYA FORMAT YANG BENAR
+    const dataUri = docPdf.output("datauristring");
 
-    // ✅ Android WebView
-    if (window.AndroidInterface && window.AndroidInterface.savePDF) {
-      const uint8Array = new Uint8Array(arrayBuffer);
-      let binary = "";
-      const len = uint8Array.byteLength;
-
-      for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(uint8Array[i]);
-      }
-
-      const base64 = window.btoa(binary);
-      window.AndroidInterface.savePDF(base64, fileName);
+    // ANDROID WEBVIEW
+    if (
+      typeof window !== "undefined" &&
+      window.AndroidInterface &&
+      typeof window.AndroidInterface.savePDF === "function"
+    ) {
+      window.AndroidInterface.savePDF(dataUri, fileName);
       return;
     }
 
-    // ✅ Web browser biasa
-    const blob = new Blob([arrayBuffer], { type: "application/pdf" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
+    // 🌐 BROWSER NORMAL
+    docPdf.save(fileName);
   };
 
   return (
