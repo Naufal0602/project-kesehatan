@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import Sidebar from "../../components/sidebar_super_admin";
+import Sidebar from "../../components/sidebar_user";
 import {
   collection,
   getDocs,
