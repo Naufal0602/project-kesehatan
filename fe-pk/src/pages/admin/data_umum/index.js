@@ -84,7 +84,7 @@ const DataUmumAdmin = () => {
             const res = await fetch(
               "https://project-kesehatan.vercel.app/api/delete",
               {
-                method: "DELETE",
+                method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   public_id: file.public_id,
@@ -283,9 +283,7 @@ const DataUmumAdmin = () => {
     setConfirmAction(() => async () => {
       setLoadingStatus("loading");
       try {
-        // 🔹 Cek dulu apakah ada file yang perlu dihapus di Cloudinary
         if (item.files && item.files.length > 0) {
-          // Gunakan Promise.all agar menunggu semua file selesai dihapus
           await Promise.all(
             item.files.map(async (f) => {
               if (f.public_id) {
@@ -296,7 +294,7 @@ const DataUmumAdmin = () => {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                       public_id: f.public_id,
-                      resource_type: f.resource_type || "auto",
+                      resource_type: f.resource_type,
                     }),
                   }
                 );
@@ -386,32 +384,39 @@ const DataUmumAdmin = () => {
     return match ? match[1].toLowerCase() : "";
   };
 
-  const handleDownload = (file) => {
+  const handleDownload = async (file) => {
     if (!file?.file_url) {
       alert("File tidak ditemukan.");
       return;
     }
 
-    const ext = getFileExtension(file.file_url);
     let namaFile = file.nama_file || "file";
 
-    if (!namaFile.includes(".") && ext) {
-      namaFile += "." + ext;
-    }
-
-    // 📱 ANDROID WEBVIEW (INI YANG BENAR)
+    // 📱 ANDROID WEBVIEW (tetap)
     if (window.AndroidInterface?.downloadFile) {
       window.AndroidInterface.downloadFile(file.file_url, namaFile);
       return;
     }
 
-    // 🌐 BROWSER BIASA
-    const a = document.createElement("a");
-    a.href = file.file_url;
-    a.download = namaFile;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    try {
+      const res = await fetch(file.file_url);
+      const blob = await res.blob();
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+
+      a.href = url;
+      a.download = namaFile;
+
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Gagal download:", err);
+      alert("Gagal mengunduh file");
+    }
   };
 
   return (

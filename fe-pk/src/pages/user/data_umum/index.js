@@ -121,20 +121,33 @@ const UserDataUmum = () => {
     },
   ];
 
-  const downloadUniversalFile = (fileUrl, fileName) => {
-    // 📱 ANDROID WEBVIEW
+  const downloadUniversalFile = async (fileUrl, fileName) => {
+    // 📱 ANDROID WEBVIEW (AMAN)
     if (window.AndroidInterface?.downloadFile) {
       window.AndroidInterface.downloadFile(fileUrl, fileName);
       return;
     }
 
-    // 🌐 WEB BROWSER
-    const a = document.createElement("a");
-    a.href = fileUrl;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    // 🌐 WEB BROWSER (FIX TOTAL)
+    try {
+      const res = await fetch(fileUrl);
+      const blob = await res.blob();
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+
+      a.href = url;
+      a.download = fileName;
+
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Gagal download:", err);
+      toast.error("Gagal mengunduh file");
+    }
   };
 
   return (

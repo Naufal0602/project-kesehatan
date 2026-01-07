@@ -206,7 +206,7 @@ const ConfirmAccount = () => {
 
     try {
       await fetch("https://project-kesehatan.vercel.app/api/delete", {
-        method: "DELETE",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           public_id: user.public_id,
