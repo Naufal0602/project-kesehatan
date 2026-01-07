@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import Sidebar from "../../components/sidebar";
+import Sidebar from "../../components/sidebar_super_admin";
 import {
   collection,
   getDocs,
@@ -9,7 +9,7 @@ import {
   serverTimestamp,
   getDoc,
 } from "firebase/firestore";
-import { auth, db } from "../../services/firebaseConfig";
+import { secondaryAuth, db } from "../../services/firebaseConfig";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { Loader2, X, Eye, CheckCircle, XCircle } from "lucide-react";
 import FullScreenLoader from "../../components/FullScreenLoader";
@@ -125,7 +125,7 @@ const ConfirmAccount = () => {
 
         setPendingUsers(users);
       } catch (err) {
-        console.error("Gagal mengambil data pending_users:", err);
+        console.error("Gagal mengambil data pending_user:", err);
       } finally {
         setLoading(false);
       }
@@ -138,33 +138,58 @@ const ConfirmAccount = () => {
   const handleAccept = async () => {
     const user = acceptModal.user;
     if (!user) return;
+
     setAcceptModal({ show: false, user: null });
-    showLoader("loading", "Menyetujui akun user...");
+    showLoader("loading", "Menyetujui akun admin...");
 
     try {
       const userCredential = await createUserWithEmailAndPassword(
-        auth,
+        secondaryAuth,
         user.email,
         user.password
       );
 
       const createdUser = userCredential.user;
 
+      // 1️⃣ users
       await setDoc(doc(db, "users", createdUser.uid), {
         nama: user.nama,
         email: user.email,
         lembaga: user.lembaga,
-        role: "user", 
+        role: "user",
         created_at: serverTimestamp(),
       });
 
+      // 2️⃣ data_spesifik ✅ (BARU)
+      await setDoc(doc(db, "data_spesifik", createdUser.uid), {
+        uid: createdUser.uid,
+        nama: user.nama,
+        email: user.email,
+        lembaga: user.lembaga,
+        nrp: user.nrp || "",
+        jenis_kelamin: user.jenis_kelamin || "",
+        ttl: user.ttl || "",
+        cabang: user.cabang || "",
+        kta: user.kta || "",
+        lspsn: user.lspsn || "",
+        id_tingkatan: user.id_tingkatan || null,
+        foto: user.foto || "",
+        role: "user",
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp(),
+      });
+
+      // 3️⃣ hapus pending
       await deleteDoc(doc(db, "pending_users", user.id));
+
+      // 4️⃣ email
       await sendEmail(
-      user.email,
-      user.nama,
-      "Akun user Anda telah diterima. Silakan login.",
-      true
-    );
+        user.email,
+        user.nama,
+        "Akun admin Anda telah diterima. Silakan login.",
+        true
+      );
+
       showLoader("success");
     } catch (err) {
       console.error(err);
@@ -177,7 +202,7 @@ const ConfirmAccount = () => {
     const user = confirmModal.user;
     if (!user) return;
     setConfirmModal({ show: false, type: "", user: null });
-    showLoader("loading", "Menolak akun user...");
+    showLoader("loading", "Menolak akun admin...");
 
     try {
       await fetch("https://project-kesehatan.vercel.app/api/delete", {
@@ -191,11 +216,11 @@ const ConfirmAccount = () => {
 
       await deleteDoc(doc(db, "pending_users", user.id));
       await sendEmail(
-      user.email,
-      user.nama,
-      "Maaf, pendaftaran akun user Anda ditolak.",
-      false
-    );
+        user.email,
+        user.nama,
+        "Maaf, pendaftaran akun admin Anda ditolak.",
+        false
+      );
       showLoader("success");
     } catch (err) {
       console.error(err);

@@ -34,7 +34,7 @@ export default function EditProfile() {
   // =======================
   const deleteFromBackend = async (public_id, resource_type) => {
     await fetch("https://project-kesehatan.vercel.app/api/delete", {
-      method: "DELETE",
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ public_id, resource_type }),
     });

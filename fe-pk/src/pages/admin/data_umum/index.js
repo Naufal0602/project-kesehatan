@@ -292,7 +292,7 @@ const DataUmumAdmin = () => {
                 const response = await fetch(
                   "https://project-kesehatan.vercel.app/api/delete",
                   {
-                    method: "DELETE",
+                    method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                       public_id: f.public_id,

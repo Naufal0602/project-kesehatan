@@ -16,7 +16,7 @@ const FullScreenLoader = ({ status, message }) => {
     if (status === "error") {
       setPhase("error");
       const timer = setTimeout(() => {
-        window.location.reload(); // 🔁 auto refresh juga meskipun gagal
+        // window.location.reload(); // 🔁 auto refresh juga meskipun gagal
       }, 1500);
       return () => clearTimeout(timer);
     }
